@@ -4,7 +4,10 @@
 #define NOT_ENOUGH_ARG -3
 #define MANY_ARG -4
 #define FILE_NOT_OPEN -5
-#define EXIT -6
+#define FORK_ERROR -6
+#define PIPE_ERROR -7
+#define EXEC_ERROR -8
+#define EXIT -9
 
 typedef struct map{
 	int dirID;
@@ -18,3 +21,6 @@ int createMap(map**, int);
 int initializeMap(FILE*, map*, int);
 void printMap(map*, int);
 void deleteMap(map**, int);
+int createPipePtr(int***, int);
+int createPipe(int**);
+void deletePipe(int***, int);

@@ -25,6 +25,17 @@ void printErrorMessage(int errorCode){
 			printf("Attempt to open the given file");
 			printf(" was unsuccessful\n");
 			break;
+		case FORK_ERROR:
+			printf("Attempt to create a child process");
+			printf(" was unsuccessful\n");
+			break;
+		case PIPE_ERROR:
+			printf("Attempt to create a pipeline");
+			printf(" was unsuccessful\n");
+			break;
+		case EXEC_ERROR:
+			printf("The exec system call failed\n");
+			break;
 	}
 }
 
@@ -113,4 +124,37 @@ void deleteMap(map** ptr, int size){
 	for(int i = 0; i < size; i++)
 		free((*ptr)[i].dirPath);
 	free(*ptr);
+}
+
+/**********************/
+/*** PIPE FUNCTIONS ***/
+/**********************/
+
+/* Creates an array of pointers which point to the array
+   that holds the file descriptors of a pipe */
+int createPipePtr(int*** ptr, int size){
+	*ptr = (int**)malloc(size*sizeof(int*));
+	if(*ptr == NULL)
+		return MEM_ERROR;
+
+	return OK;
+}
+
+/* Creates the array which holds the file descriptors 
+   of a pipe */
+int createPipe(int** ptr){
+	*ptr = (int*)malloc(2*sizeof(int));
+	if(*ptr == NULL)
+		return MEM_ERROR;
+
+	return OK;
+}
+
+/* Deallocates all the memory that was associated with
+   pipes */
+void deletePipe(int*** ptr, int size){
+	for(int i = 0; i < size; i++)
+		free(ptr[0][i]);
+	
+	free(ptr[0]);
 }
