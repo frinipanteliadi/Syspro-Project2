@@ -24,3 +24,5 @@ void deleteMap(map**, int);
 int createPipePtr(int***, int);
 int createPipe(int**);
 void deletePipe(int***, int);
+int allocatePathname(char**,int);
+void createPathname(char**, char*);

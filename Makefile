@@ -22,3 +22,4 @@ clean:
 	rm -rf *.o
 	rm -rf jobExecutor
 	rm -rf worker
+	find .  -maxdepth 1 -type p -delete

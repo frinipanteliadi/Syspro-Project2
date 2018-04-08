@@ -158,3 +158,15 @@ void deletePipe(int*** ptr, int size){
 	
 	free(ptr[0]);
 }
+
+int allocatePathname(char** ptr,int length){
+	*ptr = (char*)malloc(strlen("Pipe")+length+1);
+	if(*ptr == NULL)
+		return MEM_ERROR;
+	return OK;
+}
+
+void createPathname(char** ptr, char* buffer){
+	strcpy(*ptr,"Pipe");
+	strcat(*ptr,buffer);
+}

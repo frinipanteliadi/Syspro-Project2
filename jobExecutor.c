@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include "functions.h"
 
 //   Commands for terminal:
@@ -66,54 +67,50 @@ int main(int argc, char* argv[]){
 
 	// printMap(mapPtr,total_directories);
 	
-	int** pipesPtr;
-	errorCode = createPipePtr(&pipesPtr,numWorkers);
-	if(errorCode != OK){
-		printErrorMessage(errorCode);
-		return EXIT;
-	}
-
-
-	char str[1224];
-	char str1[1224];
 
 	/****************************/
 	/*** CREATING THE WORKERS ***/
 	/****************************/
-
+	
+	char buffer[sizeof(int)*4+1];
+	char* pathname;
 	pid_t pid;
 	for(int i = 0; i < numWorkers; i++){
 		
-		errorCode = createPipe(&pipesPtr[i]);
+		sprintf(buffer,"%d",i);												// Stores i as a string
+		
+		errorCode = allocatePathname(&pathname,strlen(buffer));
 		if(errorCode != OK){
 			printErrorMessage(errorCode);
 			return EXIT;
 		}
 
-		if(pipe(pipesPtr[i]) == -1){
+		createPathname(&pathname,buffer);									// The form of each named pipe is: Pipei
+		// printf("Pathname: %s\n",pathname);
+
+		if(mkfifo(pathname,0666) < 0){										// Creating a named pipe
 			printErrorMessage(PIPE_ERROR);
 			return EXIT;
 		}
 
-		pid = fork();														// Create a child process
+		pid = fork();														// Creating a child process
 		if(pid == -1){
 			printErrorMessage(FORK_ERROR);
 			return EXIT;
 		}
-		else if(pid == 0){
-			sprintf(str,"%d",pipesPtr[i][0]);
-			sprintf(str1,"%d",pipesPtr[i][1]);
-			if(execlp("./worker","./worker",str,str1,(char*)NULL) == -1){
+		else if(pid == 0){													// Commands for the child process
+			if(execlp("./worker","./worker",pathname,(char*)NULL) == -1){
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
 		}
 		else{
 			wait(NULL);
-			printf("Parent Read FD: %d\n",pipesPtr[i][0]);
-			printf("Parent Write FD: %d\n",pipesPtr[i][1]);
+			printf("(Parent) Name of the pipe: %s\n",pathname);
 			printf("I am the parent\n");
 		}
+
+		free(pathname);
 	}
 
 	/***************************/
@@ -121,6 +118,6 @@ int main(int argc, char* argv[]){
 	/***************************/
 
 	deleteMap(&mapPtr,total_directories);
-	deletePipe(&pipesPtr,numWorkers);
+	// deletePipe(&pipesPtr,numWorkers);
 	fclose(fp);																// Closing the file
 }
