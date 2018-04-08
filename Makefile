@@ -9,11 +9,14 @@ jobExecutor.o: jobExecutor.c
 functions.o: functions.c
 	gcc -c functions.c
 
-worker: worker.o
-	gcc worker.o -o worker
+worker: worker.o worker_functions.o
+	gcc worker.o worker_functions.o -o worker
 
 worker.o: worker.c
 	gcc -c worker.c
+
+worker_functions.o: worker_functions.c
+	gcc -c worker_functions.c
 
 clean:
 	rm -rf *.o

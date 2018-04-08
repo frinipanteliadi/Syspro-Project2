@@ -77,6 +77,10 @@ int main(int argc, char* argv[]){
 	char str[1224];
 	char str1[1224];
 
+	/****************************/
+	/*** CREATING THE WORKERS ***/
+	/****************************/
+
 	pid_t pid;
 	for(int i = 0; i < numWorkers; i++){
 		

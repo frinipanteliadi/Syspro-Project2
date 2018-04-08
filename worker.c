@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "worker_functions.h"
 
 int main(int argc, char* argv[]){
-	if(argc != 3){
-		printf("Invalid arguments\n");
-		return -1;
+	int errorCode;
+	if(errorCode = workerArgs(argc) != OK){
+		printWorkerError(errorCode);
+		return EXIT;
 	}
 
 	int pipefd[2];
