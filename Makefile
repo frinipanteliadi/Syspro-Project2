@@ -1,6 +1,6 @@
 all: jobExecutor worker
 
-jobExecutor: jobExecutor.o functions.o
+jobExecutor: jobExecutor.o functions.o 
 	gcc jobExecutor.o functions.o -o jobExecutor
 
 jobExecutor.o: jobExecutor.c
@@ -8,6 +8,7 @@ jobExecutor.o: jobExecutor.c
 
 functions.o: functions.c
 	gcc -c functions.c
+
 
 worker: worker.o worker_functions.o
 	gcc worker.o worker_functions.o -o worker
@@ -19,6 +20,7 @@ worker_functions.o: worker_functions.c
 	gcc -c worker_functions.c
 
 clean:
+	rm -rf *.txt
 	rm -rf *.o
 	rm -rf jobExecutor
 	rm -rf worker

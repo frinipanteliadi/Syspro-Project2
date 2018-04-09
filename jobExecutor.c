@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include "functions.h"
 
 //   Commands for terminal:
@@ -39,7 +40,7 @@ int main(int argc, char* argv[]){
 			numWorkers = atoi(argv[i+1]);
 	}
 
-	printf("NumWorkers: %d\n",numWorkers);
+	// printf("NumWorkers: %d\n",numWorkers);
 
 	int total_directories = getNumberOfLines(fp);
 	rewind(fp);																// Return to the beggining of the file
@@ -65,19 +66,30 @@ int main(int argc, char* argv[]){
 		return EXIT;
 	}
 
+	fclose(fp);																// Closing the file
+
 	// printMap(mapPtr,total_directories);
 	
 
 	/****************************/
 	/*** CREATING THE WORKERS ***/
+	/***         AND          ***/
+	/***      THE PIPES       ***/
 	/****************************/
 	
 	char buffer[sizeof(int)*4+1];
+	char id[sizeof(int)*4+1];
 	char* pathname_read;
 	char* pathname_write;
+	// int reading_fd[numWorkers];												
+	int writing_fd[numWorkers];
+	int fd;
 	pid_t pid;
+	
+	int distributions = total_directories%numWorkers;
+	int counter = 0;
+
 	for(int i = 0; i < numWorkers; i++){
-		
 		sprintf(buffer,"%d",i);
 		
 		errorCode = allocatePathname(&pathname_read,&pathname_write,
@@ -88,8 +100,8 @@ int main(int argc, char* argv[]){
 		}
 
 		createPathname(&pathname_read,buffer,&pathname_write);				
-		printf("\nPathnameRead: %s\n",pathname_read);
-		printf("PathnameWrite: %s\n",pathname_write);
+		/*printf("\nPathnameRead: %s\n",pathname_read);
+		printf("PathnameWrite: %s\n",pathname_write);*/
 
 		if(mkfifo(pathname_read,0666) < 0){									// Creating a named-pipe where the jobExecutor reads from it
 			printErrorMessage(PIPE_ERROR);
@@ -112,9 +124,46 @@ int main(int argc, char* argv[]){
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
+			continue;
 		}
 		else{
 			wait(NULL);
+			while(counter < total_directories){
+				int j;
+				for(j = 0; j < distributions; j++)
+					if((counter+j) >= total_directories)
+						break;
+
+				int turn = 0;
+				for(int k = counter; turn < j; k++){
+					sprintf(id,"%d",mapPtr[k].dirID);
+					char* string;
+					string = (char*)malloc(+sizeof(id)+strlen(" ")
+						+strlen(mapPtr[k].dirPath)+1);
+					if(string == NULL){
+						printErrorMessage(MEM_ERROR);
+						return EXIT;
+					}
+					strcpy(string,id);
+					strcat(string," ");
+					strcat(string,mapPtr[k].dirPath);
+
+					printf("String: %s\n",string);
+
+					int bytes;
+					
+					fd = open("testing.txt",O_CREAT | O_WRONLY | O_APPEND);
+					bytes = write(fd,string,strlen(string));
+					
+					free(string); 					
+					close(fd);
+					turn++;
+				}
+				counter += j;
+			}
+
+			// writing_fd[i] = open(pathname_write,O_WRONLY);
+			// write(writing_fd[i],"Hello",strlen("Hello")+1);
 			printf("The parent reads from: %s\n",pathname_read);
 			printf("The parent writes to: %s\n",pathname_write);
 		}
@@ -128,5 +177,4 @@ int main(int argc, char* argv[]){
 	/***************************/
 
 	deleteMap(&mapPtr,total_directories);
-	fclose(fp);																// Closing the file
 }
