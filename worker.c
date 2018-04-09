@@ -10,7 +10,10 @@ int main(int argc, char* argv[]){
 		return EXIT;
 	}
 
-	printf("(Child) Name of the pipe: %s\n",argv[1]);
-	printf("I am the child process\n");
+	char* pathname_read = argv[2];											// The named-pipe which the worker uses for reading
+	char* pathname_write = argv[1];											// The named-pipe which the worker uses for writing
+	
+	printf("\nThe Worker reads from: %s\n",pathname_read);
+	printf("The Worker writes to: %s\n",pathname_write);
 	return 0;
 }

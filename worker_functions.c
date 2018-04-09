@@ -16,7 +16,7 @@ void printWorkerError(int errorCode){
 /* Checks the number of arguments that 
    were provided */ 
 int workerArgs(int arguments){
-	if(arguments != 2)
+	if(arguments != 3)
 		return ARGS_ERROR;
 	return OK;
 }

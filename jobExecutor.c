@@ -73,22 +73,30 @@ int main(int argc, char* argv[]){
 	/****************************/
 	
 	char buffer[sizeof(int)*4+1];
-	char* pathname;
+	char* pathname_read;
+	char* pathname_write;
 	pid_t pid;
 	for(int i = 0; i < numWorkers; i++){
 		
-		sprintf(buffer,"%d",i);												// Stores i as a string
+		sprintf(buffer,"%d",i);
 		
-		errorCode = allocatePathname(&pathname,strlen(buffer));
+		errorCode = allocatePathname(&pathname_read,&pathname_write,
+			strlen(buffer));
 		if(errorCode != OK){
 			printErrorMessage(errorCode);
 			return EXIT;
 		}
 
-		createPathname(&pathname,buffer);									// The form of each named pipe is: Pipei
-		// printf("Pathname: %s\n",pathname);
+		createPathname(&pathname_read,buffer,&pathname_write);				
+		printf("\nPathnameRead: %s\n",pathname_read);
+		printf("PathnameWrite: %s\n",pathname_write);
 
-		if(mkfifo(pathname,0666) < 0){										// Creating a named pipe
+		if(mkfifo(pathname_read,0666) < 0){									// Creating a named-pipe where the jobExecutor reads from it
+			printErrorMessage(PIPE_ERROR);
+			return EXIT;
+		}
+
+		if(mkfifo(pathname_write,0666) < 0){								// Creating a named pipe where the jobExecutor writes to it
 			printErrorMessage(PIPE_ERROR);
 			return EXIT;
 		}
@@ -99,18 +107,20 @@ int main(int argc, char* argv[]){
 			return EXIT;
 		}
 		else if(pid == 0){													// Commands for the child process
-			if(execlp("./worker","./worker",pathname,(char*)NULL) == -1){
+			if(execlp("./worker","./worker",pathname_read,
+				pathname_write,(char*)NULL) == -1){
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
 		}
 		else{
 			wait(NULL);
-			printf("(Parent) Name of the pipe: %s\n",pathname);
-			printf("I am the parent\n");
+			printf("The parent reads from: %s\n",pathname_read);
+			printf("The parent writes to: %s\n",pathname_write);
 		}
 
-		free(pathname);
+		free(pathname_read);
+		free(pathname_write);
 	}
 
 	/***************************/
@@ -118,6 +128,5 @@ int main(int argc, char* argv[]){
 	/***************************/
 
 	deleteMap(&mapPtr,total_directories);
-	// deletePipe(&pipesPtr,numWorkers);
 	fclose(fp);																// Closing the file
 }

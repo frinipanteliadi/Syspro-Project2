@@ -130,43 +130,27 @@ void deleteMap(map** ptr, int size){
 /*** PIPE FUNCTIONS ***/
 /**********************/
 
-/* Creates an array of pointers which point to the array
-   that holds the file descriptors of a pipe */
-int createPipePtr(int*** ptr, int size){
-	*ptr = (int**)malloc(size*sizeof(int*));
-	if(*ptr == NULL)
+/* Allocates memory in the heap for the pathname of 
+   of the named pipe */
+int allocatePathname(char** ptr_read, char** ptr_write, int length){
+	*ptr_read = (char*)malloc(strlen("PipeRead")+length+1);
+	if(*ptr_read == NULL)
+		return MEM_ERROR;
+
+	*ptr_write = (char*)malloc(strlen("PipeWrite")+length+1);
+	if(*ptr_write == NULL)
 		return MEM_ERROR;
 
 	return OK;
 }
 
-/* Creates the array which holds the file descriptors 
-   of a pipe */
-int createPipe(int** ptr){
-	*ptr = (int*)malloc(2*sizeof(int));
-	if(*ptr == NULL)
-		return MEM_ERROR;
-
-	return OK;
-}
-
-/* Deallocates all the memory that was associated with
-   pipes */
-void deletePipe(int*** ptr, int size){
-	for(int i = 0; i < size; i++)
-		free(ptr[0][i]);
+/* Creates the pathname of the named pipe */
+void createPathname(char** ptr_read, char* buffer,
+	char** ptr_write){
 	
-	free(ptr[0]);
-}
+	strcpy(*ptr_read,"PipeRead");
+	strcat(*ptr_read,buffer);
 
-int allocatePathname(char** ptr,int length){
-	*ptr = (char*)malloc(strlen("Pipe")+length+1);
-	if(*ptr == NULL)
-		return MEM_ERROR;
-	return OK;
-}
-
-void createPathname(char** ptr, char* buffer){
-	strcpy(*ptr,"Pipe");
-	strcat(*ptr,buffer);
+	strcpy(*ptr_write,"PipeWrite");
+	strcat(*ptr_write,buffer);
 }
