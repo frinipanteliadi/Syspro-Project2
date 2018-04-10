@@ -4,27 +4,32 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <poll.h>
 #include "worker_functions.h"
 
 int main(int argc, char* argv[]){
-	printf("Hi\n");
+	/*printf("\n**WORKER**\n");
 	int errorCode;
 	if(errorCode = workerArgs(argc) != OK){
 		printWorkerError(errorCode);
 		return EXIT;
 	}
 
-	char* pathname_read = argv[2];											// The named-pipe which the worker uses for reading
-	char* pathname_write = argv[1];											// The named-pipe which the worker uses for writing
-	
-	// printf("The Worker reads from: %s\n",pathname_read);
-	// printf("The Worker writes to: %s\n",pathname_write);
+	char* pathname_read = argv[2];		
+	char* pathname_write = argv[1];								
+	printf("(Child)Reads from: %s\n",argv[2]);
+	printf("(Child)Writes to: %s\n",argv[1]);
 
-	// int fd[2];																// File descriptors for the named-pipes
-	// fd[0] = open(pathname_read,O_RDONLY);
-	// // Sprintf("fd[0] = %d\n",fd[0]);
-	// char buffer[80];
-	// read(fd[0],buffer,sizeof(buffer));
-	// printf("The child read: %s\n",buffer);
-	return 0;
+	int fd = open(argv[2],O_RDONLY);*/
+	
+	printf("** WORKER **\n");
+	int fd = open(argv[1],O_RDONLY);	
+	printf("Message:\n");
+	char c;
+	while(read(fd,&c,1) == 1){												
+		putchar(c);
+	}
+	
+	close(fd);
+	return OK;
 }

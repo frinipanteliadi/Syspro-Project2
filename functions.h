@@ -12,6 +12,7 @@
 typedef struct map{
 	int dirID;
 	char* dirPath;
+	int dirLength;
 }map;
 
 void printErrorMessage(int);

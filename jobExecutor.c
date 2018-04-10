@@ -88,6 +88,7 @@ int main(int argc, char* argv[]){
 	
 	int distributions = total_directories%numWorkers;
 	int counter = 0;
+	int total = 0;															// Keeps track of the times we've written to the file so far
 
 	for(int i = 0; i < numWorkers; i++){
 		sprintf(buffer,"%d",i);
@@ -119,15 +120,15 @@ int main(int argc, char* argv[]){
 			return EXIT;
 		}
 		else if(pid == 0){													// Commands for the child process
-			if(execlp("./worker","./worker",pathname_read,
-				pathname_write,(char*)NULL) == -1){
+			if(execlp("./worker","./worker","testing.txt"/*pathname_read,
+				pathname_write*/,(char*)NULL) == -1){
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
 			continue;
 		}
 		else{
-			wait(NULL);
+			// wait(NULL);
 			while(counter < total_directories){
 				int j;
 				for(j = 0; j < distributions; j++)
@@ -148,24 +149,33 @@ int main(int argc, char* argv[]){
 					strcat(string," ");
 					strcat(string,mapPtr[k].dirPath);
 
-					printf("String: %s\n",string);
+					// printf("String: %s\n",string);
 
 					int bytes;
-					
-					fd = open("testing.txt",O_CREAT | O_WRONLY | O_APPEND);
-					bytes = write(fd,string,strlen(string));
-					
-					free(string); 					
+					if(total == 0){											// It's the first time we're writing to the file, therefore we must create it
+						mode_t fdmode = S_IRUSR|S_IWUSR;
+						fd = open(/*pathname_write*/"testing.txt", 
+							O_WRONLY | O_CREAT, fdmode);
+						bytes = write(fd,string,strlen(string));
+					}
+					else{
+						fd = open(/*pathname_write*/ "testing.txt", O_WRONLY | O_APPEND);
+						bytes = write(fd,string,strlen(string));
+					}
+
+					total++;					
 					close(fd);
+					free(string); 					
 					turn++;
 				}
 				counter += j;
 			}
+			
 
 			// writing_fd[i] = open(pathname_write,O_WRONLY);
 			// write(writing_fd[i],"Hello",strlen("Hello")+1);
-			printf("The parent reads from: %s\n",pathname_read);
-			printf("The parent writes to: %s\n",pathname_write);
+			/*printf("(Parent)Reads from: %s\n",pathname_read);
+			printf("(Parent)Writes to: %s\n",pathname_write);*/
 		}
 
 		free(pathname_read);
