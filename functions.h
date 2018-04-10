@@ -15,6 +15,12 @@ typedef struct map{
 	int dirLength;
 }map;
 
+typedef struct pipes{
+	int pipe_id;
+	char* pipename_read;
+	char* pipename_write;
+}pipes;
+
 void printErrorMessage(int);
 int CommandLineArg(int);
 int getNumberOfLines(FILE*);
@@ -27,3 +33,6 @@ int createPipe(int**);
 void deletePipe(int***, int);
 int allocatePathname(char**, char**, int);
 void createPathname(char**, char*, char**);
+int allocatePipeArray(pipes**, int);
+int initializePipeArray(pipes**,int, char*, char*);
+void deletePipeArray(pipes**, int);

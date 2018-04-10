@@ -42,7 +42,7 @@ int main(int argc, char* argv[]){
 
 	// printf("NumWorkers: %d\n",numWorkers);
 
-	int total_directories = getNumberOfLines(fp);
+	int total_directories = getNumberOfLines(fp);							// Total number of paths kept in the file
 	rewind(fp);																// Return to the beggining of the file
 	
 	/*********************************/
@@ -77,16 +77,21 @@ int main(int argc, char* argv[]){
 	/***      THE PIPES       ***/
 	/****************************/
 	
+	pipes* pipes_ptr;
+	errorCode = allocatePipeArray(&pipes_ptr,numWorkers);
+	if(errorCode != OK){
+		printErrorMessage(errorCode);
+		return EXIT;
+	}
+
 	char buffer[sizeof(int)*4+1];
 	char id[sizeof(int)*4+1];
 	char* pathname_read;
 	char* pathname_write;
-	// int reading_fd[numWorkers];												
-	int writing_fd[numWorkers];
 	int fd;
 	pid_t pid;
-	
 	int distributions = total_directories%numWorkers;
+	printf("Distributions: %d\n",distributions );
 	int counter = 0;
 	int total = 0;															// Keeps track of the times we've written to the file so far
 
@@ -101,6 +106,14 @@ int main(int argc, char* argv[]){
 		}
 
 		createPathname(&pathname_read,buffer,&pathname_write);				
+		
+		errorCode = initializePipeArray(&pipes_ptr,i,
+			pathname_read,pathname_write);
+		if(errorCode != OK){
+			printErrorMessage(errorCode);
+			return EXIT;
+		}
+
 		/*printf("\nPathnameRead: %s\n",pathname_read);
 		printf("PathnameWrite: %s\n",pathname_write);*/
 
@@ -128,13 +141,25 @@ int main(int argc, char* argv[]){
 			continue;
 		}
 		else{
+			if(i != 0)
 			// wait(NULL);
+				sleep(5);
 			while(counter < total_directories){
 				int j;
-				for(j = 0; j < distributions; j++)
-					if((counter+j) >= total_directories)
-						break;
 
+				if(distributions == 0){
+					if(numWorkers == 1)
+						j = total_directories;
+					else if(numWorkers == total_directories)
+						j = 1;
+				}
+				
+				else{
+					for(j = 0; j < distributions; j++)
+						if((counter+j) >= total_directories)
+							break;
+				}
+			
 				int turn = 0;
 				for(int k = counter; turn < j; k++){
 					sprintf(id,"%d",mapPtr[k].dirID);
@@ -171,9 +196,6 @@ int main(int argc, char* argv[]){
 				counter += j;
 			}
 			
-
-			// writing_fd[i] = open(pathname_write,O_WRONLY);
-			// write(writing_fd[i],"Hello",strlen("Hello")+1);
 			/*printf("(Parent)Reads from: %s\n",pathname_read);
 			printf("(Parent)Writes to: %s\n",pathname_write);*/
 		}
@@ -186,5 +208,6 @@ int main(int argc, char* argv[]){
 	/*** DEALLOCATING MEMORY ***/
 	/***************************/
 
+	deletePipeArray(&pipes_ptr,numWorkers);
 	deleteMap(&mapPtr,total_directories);
 }

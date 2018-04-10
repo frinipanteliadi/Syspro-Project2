@@ -154,3 +154,37 @@ void createPathname(char** ptr_read, char* buffer,
 	strcpy(*ptr_write,"PipeWrite");
 	strcat(*ptr_write,buffer);
 }
+
+/* Allocates memory for the creation of an array
+   in which we will store the names of the pipes */
+int allocatePipeArray(pipes** ptr, int size){
+	*ptr = (pipes*)malloc(size*sizeof(pipes));
+	if(*ptr == NULL)
+		return MEM_ERROR;
+	return OK;
+}
+
+int initializePipeArray(pipes** ptr,int index, char* read, char* write){
+	ptr[0][index].pipe_id = index;
+	
+	ptr[0][index].pipename_read = (char*)malloc(strlen(read)+1);
+	if(ptr[0][index].pipename_read == NULL)
+		return MEM_ERROR;
+	strcpy(ptr[0][index].pipename_read,read);
+
+	ptr[0][index].pipename_write = (char*)malloc(strlen(write)+1);
+	if(ptr[0][index].pipename_write == NULL)
+		return MEM_ERROR;
+	strcpy(ptr[0][index].pipename_write,write);
+
+	return OK;
+}
+
+void deletePipeArray(pipes** ptr, int size){
+	for(int i = 0; i < size; i++){
+		free(ptr[0][i].pipename_read);
+		free(ptr[0][i].pipename_write);
+	}
+
+	free(*ptr);
+}
