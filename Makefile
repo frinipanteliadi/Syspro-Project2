@@ -1,6 +1,6 @@
 all: jobExecutor worker
 
-jobExecutor: jobExecutor.o functions.o 
+jobExecutor: jobExecutor.o functions.o
 	gcc jobExecutor.o functions.o -o jobExecutor
 
 jobExecutor.o: jobExecutor.c
@@ -24,4 +24,5 @@ clean:
 	rm -rf *.o
 	rm -rf jobExecutor
 	rm -rf worker
+	rm -rf info
 	find .  -maxdepth 1 -type p -delete

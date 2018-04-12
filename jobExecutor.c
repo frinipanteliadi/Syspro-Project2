@@ -154,7 +154,8 @@ int main(int argc, char* argv[]){
 				return EXIT;
 			}*/
 		
-			int j, fd, bytes = 0, turn = 0;
+			int j, fd, turn = 0;
+			ssize_t bytes = 0;
 			for(j = 0; j < distr[i]; j++){
 				
 				int k = current_map_position;
@@ -186,15 +187,27 @@ int main(int argc, char* argv[]){
 				// printf("Writing %s\n",string);
 				bytes += write(fd,string,(size_t)(strlen(string)));
 				
-				close(fd);
+				/*close(fd);*/
 				free(string);
 				current_map_position++;	
 			}
 			
-			printf("The parent wrote %d bytes to the file\n",bytes);	
-			kill(pid,SIGCONT);												// Time for the child to read the file
-			raise(SIGSTOP);											// Parent will wait for the child
+			// printf("The parent wrote %d bytes to the file\n",bytes);	
+			
+			int filedesc = open("info", O_CREAT | O_RDWR, 0666);
+			if(filedesc < 0){
+				printf("Attempt to create an extra file");
+				printf(" was unsuccessful\n");
+				return EXIT;
+			}
 
+			write(filedesc,&bytes,sizeof(ssize_t));
+			close(filedesc);
+
+			kill(pid,SIGCONT);												// Time for the child to read the file
+			raise(SIGSTOP);													// Parent will wait for the child
+
+			close(fd);
 			/*printf("(Parent)Reads from: %s\n",pathname_read);
 			printf("(Parent)Writes to: %s\n",pathname_write);*/
 		}

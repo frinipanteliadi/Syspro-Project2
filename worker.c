@@ -8,16 +8,13 @@
 #include <fcntl.h>
 #include "worker_functions.h"
 
-#define SIZE 1224
 
 int main(int argc, char* argv[]){
 
-	printf("\nCHILD STARTED\n");
-
 	int errorCode;
-	if(errorCode = workerArgs(argc) != OK){
+	if(errorCode = workerArgs(argc) != WORKER_OK){
 		printWorkerError(errorCode);
-		return EXIT;
+		return WORKER_EXIT;
 	}
 
 	char* pathname_read = argv[2];		
@@ -27,8 +24,8 @@ int main(int argc, char* argv[]){
 
 	int fd = open(argv[2],O_RDONLY);
 	if(fd < 0){
-		printWorkerError(OPEN_ERROR);
-		return EXIT;
+		printWorkerError(WORKER_OPEN_ERROR);
+		return WORKER_EXIT;
 	}
 
 	/***************************/
@@ -39,16 +36,31 @@ int main(int argc, char* argv[]){
 
 	raise(SIGSTOP);													// Wait until the parent finishes writing
 
-	char buf[SIZE];
-	int bytes = read(fd,buf,sizeof(buf));
-	printf("The child read %d bytes from the file:\n",bytes);
-	
-	kill(getppid(),SIGCONT);	
+	int filedesc = open("info", O_RDONLY);
+	if(filedesc < 0){
+		printWorkerError(WORKER_OPEN_ERROR);
+		return WORKER_EXIT;
+	} 
 
+	ssize_t bytes;
+	read(filedesc,&bytes,sizeof(ssize_t));
+	close(filedesc);
+
+	char* buf;
+	buf = (char*)malloc(bytes*sizeof(char));
+	if(buf == NULL){
+		printWorkerError(WORKER_MEM_ERROR);
+		return WORKER_EXIT;
+	}
+
+	read(fd,buf,bytes);
+	kill(getppid(),SIGCONT);	
 	close(fd);
+	
 	buf[bytes-1] = 0;
 
 	printf("%s\n",buf);
 
-	return OK;
+	free(buf);
+	return WORKER_OK;
 }
