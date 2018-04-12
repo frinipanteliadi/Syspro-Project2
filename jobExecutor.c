@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include "functions.h"
 
 //   Commands for terminal:
@@ -73,8 +74,11 @@ int main(int argc, char* argv[]){
 
 	/****************************/
 	/*** CREATING THE WORKERS ***/
-	/***         AND          ***/
-	/***      THE PIPES       ***/
+	/****************************/
+	/***  CREATING THE PIPES  ***/
+	/****************************/
+	/***   DISTRIBUTING THE   ***/
+	/***     DIRECTORIES      ***/
 	/****************************/
 	
 	pipes* pipes_ptr;
@@ -90,10 +94,14 @@ int main(int argc, char* argv[]){
 	char* pathname_write;
 	int fd;
 	pid_t pid;
-	int distributions = total_directories%numWorkers;
-	printf("Distributions: %d\n",distributions );
-	int counter = 0;
-	int total = 0;															// Keeps track of the times we've written to the file so far
+	int distr[numWorkers];
+	int current_map_position = 0;
+
+
+	setDistributions(total_directories,numWorkers,distr);
+	/*for(int i = 0; i < numWorkers; i++)
+		printf("Worker%d: %d directories\n",i,distr[i]);*/
+
 
 	for(int i = 0; i < numWorkers; i++){
 		sprintf(buffer,"%d",i);
@@ -133,69 +141,60 @@ int main(int argc, char* argv[]){
 			return EXIT;
 		}
 		else if(pid == 0){													// Commands for the child process
-			if(execlp("./worker","./worker","testing.txt"/*pathname_read,
-				pathname_write*/,(char*)NULL) == -1){
+			if(execlp("./worker","./worker",pathname_read,
+				pathname_write,(char*)NULL) == -1){
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
-			continue;
 		}
-		else{
-			if(i != 0)
-			// wait(NULL);
-				sleep(5);
-			while(counter < total_directories){
-				int j;
+		else{																// Commands for the parent process
+			/*int fd = open(pathname_write,O_WRONLY | O_APPEND);
+			if(fd < 0){
+				printErrorMessage(OPEN_ERROR);
+				return EXIT;
+			}*/
+		
+			int j, fd, bytes = 0, turn = 0;
+			for(j = 0; j < distr[i]; j++){
+				
+				int k = current_map_position;
+				
+				sprintf(id,"%d",mapPtr[k].dirID);
+				char* string;
+				string = (char*)malloc((int)strlen(id)+(int)strlen(" ")
+					+(int)strlen(mapPtr[k].dirPath)+1);
+				if(string == NULL){
+					printErrorMessage(MEM_ERROR);
+					return EXIT;
+				}
 
-				if(distributions == 0){
-					if(numWorkers == 1)
-						j = total_directories;
-					else if(numWorkers == total_directories)
-						j = 1;
+				strcpy(string,id);
+				strcat(string," ");
+				strcat(string,mapPtr[k].dirPath);
+				
+				// printf("%d) %s\n",j,string);
+				if(k == 0)
+					fd = open(pathname_write, O_WRONLY | O_CREAT);
+				else
+					fd = open(pathname_write, O_WRONLY | O_APPEND);
+
+				if(fd < 0){
+					printErrorMessage(OPEN_ERROR);
+					return EXIT;
 				}
 				
-				else{
-					for(j = 0; j < distributions; j++)
-						if((counter+j) >= total_directories)
-							break;
-				}
-			
-				int turn = 0;
-				for(int k = counter; turn < j; k++){
-					sprintf(id,"%d",mapPtr[k].dirID);
-					char* string;
-					string = (char*)malloc(+sizeof(id)+strlen(" ")
-						+strlen(mapPtr[k].dirPath)+1);
-					if(string == NULL){
-						printErrorMessage(MEM_ERROR);
-						return EXIT;
-					}
-					strcpy(string,id);
-					strcat(string," ");
-					strcat(string,mapPtr[k].dirPath);
-
-					// printf("String: %s\n",string);
-
-					int bytes;
-					if(total == 0){											// It's the first time we're writing to the file, therefore we must create it
-						mode_t fdmode = S_IRUSR|S_IWUSR;
-						fd = open(/*pathname_write*/"testing.txt", 
-							O_WRONLY | O_CREAT, fdmode);
-						bytes = write(fd,string,strlen(string));
-					}
-					else{
-						fd = open(/*pathname_write*/ "testing.txt", O_WRONLY | O_APPEND);
-						bytes = write(fd,string,strlen(string));
-					}
-
-					total++;					
-					close(fd);
-					free(string); 					
-					turn++;
-				}
-				counter += j;
+				// printf("Writing %s\n",string);
+				bytes += write(fd,string,(size_t)(strlen(string)));
+				
+				close(fd);
+				free(string);
+				current_map_position++;	
 			}
 			
+			printf("The parent wrote %d bytes to the file\n",bytes);	
+			kill(pid,SIGCONT);												// Time for the child to read the file
+			raise(SIGSTOP);											// Parent will wait for the child
+
 			/*printf("(Parent)Reads from: %s\n",pathname_read);
 			printf("(Parent)Writes to: %s\n",pathname_write);*/
 		}

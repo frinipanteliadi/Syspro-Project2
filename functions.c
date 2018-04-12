@@ -36,6 +36,9 @@ void printErrorMessage(int errorCode){
 		case EXEC_ERROR:
 			printf("The exec system call failed\n");
 			break;
+		case OPEN_ERROR:
+			printf("Failed to open the file (named-pipe)\n");
+			break;
 	}
 }
 
@@ -72,6 +75,46 @@ int getNumberOfLines(FILE* fp){
 	free(lineptr);
 	return lines;
 }
+
+void distributions(int dirs, int workers, int* array){
+	int a = dirs;
+	int b = workers;
+
+	for(int i = 0; i < workers; i++){
+		int result = a%b;
+
+		if(result != 0)
+			array[i] = result;
+		else{
+			if(b == 1)
+				array[i] = a;
+			else if(a == b){
+				for(int j = i; j < workers; j++)
+					array[j] = 1;
+				return;
+			}
+			else{
+				for(int j = i; j < workers; j++)
+					array[j] = a/b;
+				return;
+			}
+		}
+
+		a -= result;
+		b--;
+	}
+}
+
+void setDistributions(int dirs, int workers, int* array){
+	if(dirs < workers){
+		for(int i = dirs; i < workers; i++)
+			array[i] = 0;
+		distributions(dirs, dirs,array);
+	}
+	else
+		distributions(dirs,workers,array);
+}
+
 
 /*********************/
 /*** MAP FUNCTIONS ***/

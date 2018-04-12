@@ -10,6 +10,14 @@ void printWorkerError(int errorCode){
 			printf("were provided for the worker ");
 			printf("is invalid\n");
 			break;
+		case RAISE_ERROR:
+			printf("The raise() function");
+			printf(" failed\n");
+			break;
+		case OPEN_ERROR:
+			printf("Attempt to open the file");
+			printf(" (named-pipe) was unsuccessful\n");
+			break;
 	}
 }
 

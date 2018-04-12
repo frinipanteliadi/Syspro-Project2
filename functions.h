@@ -7,12 +7,13 @@
 #define FORK_ERROR -6
 #define PIPE_ERROR -7
 #define EXEC_ERROR -8
-#define EXIT -9
+#define OPEN_ERROR -9
+#define RAISE_ERROR -10
+#define EXIT -11
 
 typedef struct map{
 	int dirID;
 	char* dirPath;
-	int dirLength;
 }map;
 
 typedef struct pipes{
@@ -24,6 +25,8 @@ typedef struct pipes{
 void printErrorMessage(int);
 int CommandLineArg(int);
 int getNumberOfLines(FILE*);
+void distributions(int, int, int*);
+void setDistributions(int, int, int*);
 int createMap(map**, int);
 int initializeMap(FILE*, map*, int);
 void printMap(map*, int);
