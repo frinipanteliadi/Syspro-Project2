@@ -39,3 +39,4 @@ void createPathname(char**, char*, char**);
 int allocatePipeArray(pipes**, int);
 int initializePipeArray(pipes**,int, char*, char*);
 void deletePipeArray(pipes**, int);
+void signal_handler(int);

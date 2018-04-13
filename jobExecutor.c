@@ -16,6 +16,16 @@
 
 int main(int argc, char* argv[]){
 	
+	struct sigaction act;
+	sigemptyset(&act.sa_mask);
+	// sigaddset(&act.sa_mask, SIGINT);
+	act.sa_handler = signal_handler;
+	act.sa_flags = SA_SIGINFO;
+	if(sigaction(SIGUSR1,&act,NULL) < 0){
+		printf("sigaction failed\n");
+		return EXIT;
+	}
+
 	/****************************/
 	/*** HANDLING THE COMMAND ***/ 
 	/***   LINE ARGUMENTS     ***/
@@ -148,51 +158,42 @@ int main(int argc, char* argv[]){
 			}
 		}
 		else{																// Commands for the parent process
-			/*int fd = open(pathname_write,O_WRONLY | O_APPEND);
-			if(fd < 0){
-				printErrorMessage(OPEN_ERROR);
-				return EXIT;
-			}*/
 		
 			int j, fd, turn = 0;
 			ssize_t bytes = 0;
+				
+			fd = open(pathname_write, O_WRONLY | O_APPEND);
+			if(fd < 0){
+				printErrorMessage(OPEN_ERROR);
+				return EXIT;
+			}
+
 			for(j = 0; j < distr[i]; j++){
 				
 				int k = current_map_position;
 				
-				sprintf(id,"%d",mapPtr[k].dirID);
 				char* string;
-				string = (char*)malloc((int)strlen(id)+(int)strlen(" ")
-					+(int)strlen(mapPtr[k].dirPath)+1);
+				string = (char*)malloc((int)strlen(mapPtr[k].dirPath)+1);
 				if(string == NULL){
 					printErrorMessage(MEM_ERROR);
 					return EXIT;
 				}
 
-				strcpy(string,id);
-				strcat(string," ");
-				strcat(string,mapPtr[k].dirPath);
-				
-				// printf("%d) %s\n",j,string);
-				if(k == 0)
-					fd = open(pathname_write, O_WRONLY | O_CREAT);
-				else
-					fd = open(pathname_write, O_WRONLY | O_APPEND);
+				strcpy(string,mapPtr[k].dirPath);
 
-				if(fd < 0){
-					printErrorMessage(OPEN_ERROR);
-					return EXIT;
-				}
+				// printf("%d) %s\n",j,string);
 				
 				// printf("Writing %s\n",string);
 				bytes += write(fd,string,(size_t)(strlen(string)));
-				
-				/*close(fd);*/
+				// printf("Wrote %s which is %d bytes\n",string,bytes);
+
 				free(string);
 				current_map_position++;	
 			}
 			
-			// printf("The parent wrote %d bytes to the file\n",bytes);	
+			close(fd);
+			
+			// printf("The parent wrote %d bytes in total\n",bytes);	
 			
 			int filedesc = open("info", O_CREAT | O_RDWR, 0666);
 			if(filedesc < 0){
@@ -204,10 +205,10 @@ int main(int argc, char* argv[]){
 			write(filedesc,&bytes,sizeof(ssize_t));
 			close(filedesc);
 
-			kill(pid,SIGCONT);												// Time for the child to read the file
-			raise(SIGSTOP);													// Parent will wait for the child
+			kill(pid,SIGUSR2/*SIGCONT*/);												// Time for the child to read the file
+			// raise(SIGSTOP);													// Parent will wait for the child
+			pause();
 
-			close(fd);
 			/*printf("(Parent)Reads from: %s\n",pathname_read);
 			printf("(Parent)Writes to: %s\n",pathname_write);*/
 		}

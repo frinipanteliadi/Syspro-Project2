@@ -8,8 +8,18 @@
 #include <fcntl.h>
 #include "worker_functions.h"
 
-
 int main(int argc, char* argv[]){
+
+	struct sigaction act;
+	sigemptyset(&act.sa_mask);
+	// sigaddset(&act.sa_mask, SIGINT);
+	act.sa_handler = signal_handler;
+	act.sa_flags = SA_SIGINFO;
+	if(sigaction(SIGUSR2, &act, NULL) < 0){
+		printf("sigaction failed\n");
+		return WORKER_EXIT;
+	}
+
 
 	int errorCode;
 	if(errorCode = workerArgs(argc) != WORKER_OK){
@@ -28,14 +38,12 @@ int main(int argc, char* argv[]){
 		return WORKER_EXIT;
 	}
 
-	/***************************/
-	/*** WAIT FOR THE PARENT ***/
-	/***     TO FINISH       ***/
-	/***      WRITING        ***/
-	/***************************/
 
-	raise(SIGSTOP);													// Wait until the parent finishes writing
+	/*****************************/
+	/*** FETCH THE DIRECTORIES ***/
+	/*****************************/
 
+	pause();
 	int filedesc = open("info", O_RDONLY);
 	if(filedesc < 0){
 		printWorkerError(WORKER_OPEN_ERROR);
@@ -46,20 +54,31 @@ int main(int argc, char* argv[]){
 	read(filedesc,&bytes,sizeof(ssize_t));
 	close(filedesc);
 
+	// printf("The child found out that the parent");
+	// printf(" wrote %d bytes to the file\n",bytes);
+
 	char* buf;
-	buf = (char*)malloc(bytes*sizeof(char));
+	buf = (char*)malloc(bytes);
 	if(buf == NULL){
 		printWorkerError(WORKER_MEM_ERROR);
 		return WORKER_EXIT;
 	}
 
-	read(fd,buf,bytes);
-	kill(getppid(),SIGCONT);	
-	close(fd);
-	
-	buf[bytes-1] = 0;
 
-	printf("%s\n",buf);
+	ssize_t read_so_far = 0;
+	while(read_so_far != bytes)
+		read_so_far += read(fd,buf,(bytes-read_so_far));
+	
+
+	close(fd);
+	kill(getppid(),SIGUSR1);	
+	
+
+	// printf("Read %d bytes\n",read_so_far);
+	printf("Worker:\n");
+	for(int i = 0; i < (int)bytes; i++)
+		putchar(buf[i]);	
+	// printf("Length: %d\n",(int)(strlen(buf)));
 
 	free(buf);
 	return WORKER_OK;

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include "functions.h"
 
 /* Prints an error message according to an error code */
@@ -230,4 +231,14 @@ void deletePipeArray(pipes** ptr, int size){
 	}
 
 	free(*ptr);
+}
+
+
+/***********************/
+/*** SIGNAL HANDLING ***/
+/***********************/
+
+void signal_handler(int signo){
+	if(signo == SIGUSR1)
+		return;
 }
