@@ -34,7 +34,7 @@ void printWorkerError(int errorCode){
 /* Checks the number of arguments that 
    were provided */ 
 int workerArgs(int arguments){
-	if(arguments != 3)
+	if(arguments != 5)
 		return WORKER_ARGS_ERROR;
 	return WORKER_OK;
 }
@@ -61,32 +61,63 @@ int createWorkerMap(worker_map** ptr, int size){
 }
 
 /* Initializes the map */
-int initializeWorkerMap(worker_map** ptr, char* buf){
+int initializeWorkerMap(worker_map** ptr, char* buffer, int size,int length){
+	
 	char* string = NULL;
-	int turn = 0;
+	char* temp;
+	int j = 0;
+	for(int i = 0; i < size; i++){
+		for(int turn = 0; j < length; turn++, j++){
+			
+			char c;
+			strncpy(&c,&buffer[j],1);
 
-	for(int i = 0; i < (int)strlen(buf); i++){
-		if(buf[i] == '\n'){
-			ptr[0][turn].dirPath = (char*)malloc(strlen(string)+1);
-			if(ptr[0][turn].dirPath == NULL)
-				return WORKER_MEM_ERROR;
-			strcpy(ptr[0][turn].dirPath,string);
-			ptr[0][turn].dirID = turn;
+			if(c == '\n'){
+				temp = string;
+				string = (char*)malloc((strlen(temp)+2)*sizeof(char));
+				if(string == NULL)
+					return WORKER_MEM_ERROR;
+				
+				strcpy(string,temp);
+				strcat(string,&c);
 
-			turn++;
-			free(string);
-			string = NULL;
-		}
-		else{
-			string = (char*)realloc(string,strlen(string)+strlen(&buf[i])+1);
-			if(string == NULL)
-				return WORKER_MEM_ERROR;
-			strcat(string,&buf[i]);
+				string[length] = '\0';
+
+				ptr[0][i].dirID = i;
+				ptr[0][i].dirPath = (char*)malloc((strlen(string)+1)*sizeof(char));
+				if(ptr[0][i].dirPath == NULL)
+					return WORKER_MEM_ERROR;
+
+				strcpy(ptr[0][i].dirPath,string);
+
+				printf("Inserted the string %s\n",string);
+
+				free(string);
+				free(temp);
+				string = NULL;
+				j++;
+				break;
+			}
+			else{
+				if(turn == 0){
+					string = (char*)malloc(sizeof(char));
+					if(string == NULL)
+						return WORKER_MEM_ERROR;
+					strncpy(string,&buffer[j],1);
+				}
+				else{
+					temp = string;
+					string = (char*)malloc((strlen(temp)+1)*sizeof(char));
+					if(string == NULL)
+						return -1;
+					strcpy(string,temp);
+					strcat(string,&c);
+					free(temp);
+				}
+			}
 		}
 	}
 
-	free(string);
-	return WORKER_OK;
 }
 
 /* Prints the map (Helpful for debugging) */

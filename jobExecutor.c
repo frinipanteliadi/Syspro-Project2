@@ -99,7 +99,7 @@ int main(int argc, char* argv[]){
 	}
 
 	char buffer[sizeof(int)*4+1];
-	char id[sizeof(int)*4+1];
+	char worker_distr[sizeof(int)*4+1];
 	char* pathname_read;
 	char* pathname_write;
 	int fd;
@@ -115,7 +115,8 @@ int main(int argc, char* argv[]){
 
 	for(int i = 0; i < numWorkers; i++){
 		sprintf(buffer,"%d",i);
-		
+		sprintf(worker_distr,"%d",distr[i]);
+
 		errorCode = allocatePathname(&pathname_read,&pathname_write,
 			strlen(buffer));
 		if(errorCode != OK){
@@ -132,9 +133,9 @@ int main(int argc, char* argv[]){
 			return EXIT;
 		}
 
-		/*printf("\nPathnameRead: %s\n",pathname_read);
-		printf("PathnameWrite: %s\n",pathname_write);*/
-
+		/*printf("(Parent)Reads from: %s\n",pathname_read);
+		printf("(Parent)Writes to: %s\n",pathname_write);*/
+		
 		if(mkfifo(pathname_read,0666) < 0){									// Creating a named-pipe where the jobExecutor reads from it
 			printErrorMessage(PIPE_ERROR);
 			return EXIT;
@@ -152,23 +153,30 @@ int main(int argc, char* argv[]){
 		}
 		else if(pid == 0){													// Commands for the child process
 			if(execlp("./worker","./worker",pathname_read,
-				pathname_write,(char*)NULL) == -1){
+				pathname_write,buffer,
+				worker_distr,(char*)NULL) == -1){
+				
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
 		}
 		else{																// Commands for the parent process
-		
-			int j, fd, turn = 0;
-			ssize_t bytes = 0;
+			
+			int j, fd_write, fd_read;
 				
-			fd = open(pathname_write, O_WRONLY | O_APPEND);
-			if(fd < 0){
+			fd_write = open(pathname_write, O_WRONLY);
+			if(fd_write < 0){
 				printErrorMessage(OPEN_ERROR);
 				return EXIT;
 			}
 
-			for(j = 0; j < distr[i]; j++){
+			fd_read = open(pathname_read, O_RDONLY);
+			if(fd_read < 0){
+				printErrorMessage(OPEN_ERROR);
+				return EXIT;
+			}
+
+			for(j = 0; j < distr[i]; j++, current_map_position++){
 				
 				int k = current_map_position;
 				
@@ -181,36 +189,28 @@ int main(int argc, char* argv[]){
 
 				strcpy(string,mapPtr[k].dirPath);
 
-				// printf("%d) %s\n",j,string);
+
+				char length[1024];											
+				sprintf(length,"%ld",strlen(string));
+				printf("(Parent) Sending %s\n",length);
+				write(fd_write,length,1024);								// Send the length of the path as a string
 				
-				// printf("Writing %s\n",string);
-				bytes += write(fd,string,(size_t)(strlen(string)));
-				// printf("Wrote %s which is %d bytes\n",string,bytes);
+				char response[3];
+				read(fd_read,response,strlen("OK"));
+				response[2] = '\0';
+				printf("(Parent) %s\n",response);
+				if(strcmp(response,"OK") == 0)
+					write(fd_write,string,strlen(string));
 
 				free(string);
-				current_map_position++;	
+				read(fd_read,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
 			}
-			
-			close(fd);
-			
-			// printf("The parent wrote %d bytes in total\n",bytes);	
-			
-			int filedesc = open("info", O_CREAT | O_RDWR, 0666);
-			if(filedesc < 0){
-				printf("Attempt to create an extra file");
-				printf(" was unsuccessful\n");
-				return EXIT;
-			}
-
-			write(filedesc,&bytes,sizeof(ssize_t));
-			close(filedesc);
-
-			kill(pid,SIGUSR2/*SIGCONT*/);												// Time for the child to read the file
-			// raise(SIGSTOP);													// Parent will wait for the child
-			pause();
-
-			/*printf("(Parent)Reads from: %s\n",pathname_read);
-			printf("(Parent)Writes to: %s\n",pathname_write);*/
+									
+			close(fd_write);
+			close(fd_read);
 		}
 
 		free(pathname_read);

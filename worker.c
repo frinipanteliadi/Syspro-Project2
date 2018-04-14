@@ -28,58 +28,77 @@ int main(int argc, char* argv[]){
 	}
 
 	char* pathname_read = argv[2];		
-	char* pathname_write = argv[1];								
+	int fd_read = open(argv[2],O_RDONLY);
+	if(fd_read < 0){
+		printWorkerError(WORKER_OPEN_ERROR);
+		return WORKER_EXIT;
+	}
+	
+	char* pathname_write = argv[1];	
+	int fd_write = open(argv[1], O_WRONLY);
+	if(fd_write < 0){
+		printWorkerError(WORKER_OPEN_ERROR);
+		return WORKER_EXIT;
+	}
+	
 	/*printf("(Child)Reads from: %s\n",argv[2]);
 	printf("(Child)Writes to: %s\n",argv[1]);*/
+	
+	int worker_no = atoi(argv[3]);											// Worker's number
+	int distr = atoi(argv[4]);												// Number of paths for the worker
 
-	int fd = open(argv[2],O_RDONLY);
-	if(fd < 0){
-		printWorkerError(WORKER_OPEN_ERROR);
-		return WORKER_EXIT;
-	}
+	// worker_map *map_ptr;
+	// errorCode = createWorkerMap(&map_ptr,distr);
+	// if(errorCode != WORKER_OK){
+	// 	printWorkerError(errorCode);
+	// 	return WORKER_EXIT;
+	// }
 
-
-	/*****************************/
-	/*** FETCH THE DIRECTORIES ***/
-	/*****************************/
-
-	pause();
-	int filedesc = open("info", O_RDONLY);
-	if(filedesc < 0){
-		printWorkerError(WORKER_OPEN_ERROR);
-		return WORKER_EXIT;
-	} 
-
-	ssize_t bytes;
-	read(filedesc,&bytes,sizeof(ssize_t));
-	close(filedesc);
-
-	// printf("The child found out that the parent");
-	// printf(" wrote %d bytes to the file\n",bytes);
-
-	char* buf;
-	buf = (char*)malloc(bytes);
-	if(buf == NULL){
-		printWorkerError(WORKER_MEM_ERROR);
-		return WORKER_EXIT;
-	}
+	/*************************/
+	/*** OPENING THE PIPES ***/
+	/*************************/
 
 
-	ssize_t read_so_far = 0;
-	while(read_so_far != bytes)
-		read_so_far += read(fd,buf,(bytes-read_so_far));
+
+	printf("** WORKER(%d) **\n",worker_no);							
 	
 
-	close(fd);
-	kill(getppid(),SIGUSR1);	
+	char length[1024];
+	int string_length;
+	for(int i = 0; i < distr; i++){
+		
+		read(fd_read,length,1024);												// Read the length of the path
+		length[strlen(length)]='\0';
+		string_length = atoi(length);
+
+		printf("(Child) Length %s\n",length);
+		write(fd_write, "OK", strlen("OK"));
+			
+		// map_ptr[i].dirID = i;
+		// map_ptr[i].dirPath = (char*)malloc((string_length+1)*sizeof(char));
+		// if(map_ptr[i].dirPath == NULL)
+			// return WORKER_MEM_ERROR;
+
+		char* buffer;
+		buffer = (char*)malloc((string_length+1)*sizeof(char));
+		if(buffer == NULL)
+			return WORKER_MEM_ERROR;
+
+		// read(fd_write,map_ptr[i].dirPath,(size_t)string_length);
+		// map_ptr[i].dirPath[string_length] = '\0';
+		read(fd_read,buffer,(size_t)string_length*sizeof(char));
+		buffer[string_length] = '\0';
+		write(fd_write,"OK",strlen("OK"));
+
+		printf("buffer %s\n",buffer);
+		free(buffer);
+	}
 	
+	// printWorkerMap(&map_ptr,distr);
 
-	// printf("Read %d bytes\n",read_so_far);
-	printf("Worker:\n");
-	for(int i = 0; i < (int)bytes; i++)
-		putchar(buf[i]);	
-	// printf("Length: %d\n",(int)(strlen(buf)));
-
-	free(buf);
+	close(fd_read);
+	close(fd_write);
+	
+	// deleteWorkerMap(&map_ptr,distr);
 	return WORKER_OK;
 }

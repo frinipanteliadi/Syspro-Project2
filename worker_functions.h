@@ -14,7 +14,7 @@ void printWorkerError(int);
 int workerArgs(int);
 int getTotalLines(char*);
 int createWorkerMap(worker_map**, int);
-int initializeWorkerMap(worker_map**, char*);
+int initializeWorkerMap(worker_map**, char*, int,int);
 void printWorkerMap(worker_map**, int);
 void deleteWorkerMap(worker_map**, int);
 void signal_handler(int);
