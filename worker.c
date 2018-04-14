@@ -47,22 +47,15 @@ int main(int argc, char* argv[]){
 	int worker_no = atoi(argv[3]);											// Worker's number
 	int distr = atoi(argv[4]);												// Number of paths for the worker
 
-	// worker_map *map_ptr;
-	// errorCode = createWorkerMap(&map_ptr,distr);
-	// if(errorCode != WORKER_OK){
-	// 	printWorkerError(errorCode);
-	// 	return WORKER_EXIT;
-	// }
-
-	/*************************/
-	/*** OPENING THE PIPES ***/
-	/*************************/
-
-
+	worker_map *map_ptr;
+	errorCode = createWorkerMap(&map_ptr,distr);
+	if(errorCode != WORKER_OK){
+		printWorkerError(errorCode);
+		return WORKER_EXIT;
+	}
 
 	printf("** WORKER(%d) **\n",worker_no);							
 	
-
 	char length[1024];
 	int string_length;
 	for(int i = 0; i < distr; i++){
@@ -71,34 +64,38 @@ int main(int argc, char* argv[]){
 		length[strlen(length)]='\0';
 		string_length = atoi(length);
 
-		printf("(Child) Length %s\n",length);
+		// printf("(Child) Length %s\n",length);
 		write(fd_write, "OK", strlen("OK"));
 			
-		// map_ptr[i].dirID = i;
-		// map_ptr[i].dirPath = (char*)malloc((string_length+1)*sizeof(char));
-		// if(map_ptr[i].dirPath == NULL)
-			// return WORKER_MEM_ERROR;
 
-		char* buffer;
+		/*char* buffer;
 		buffer = (char*)malloc((string_length+1)*sizeof(char));
 		if(buffer == NULL)
+			return WORKER_MEM_ERROR;*/
+
+		map_ptr[i].dirID = i;
+		map_ptr[i].dirPath = (char*)malloc((string_length+1)*sizeof(char));
+		if(map_ptr[i].dirPath == NULL)
 			return WORKER_MEM_ERROR;
 
-		// read(fd_write,map_ptr[i].dirPath,(size_t)string_length);
-		// map_ptr[i].dirPath[string_length] = '\0';
-		read(fd_read,buffer,(size_t)string_length*sizeof(char));
-		buffer[string_length] = '\0';
+		read(fd_read,map_ptr[i].dirPath,(size_t)string_length*sizeof(char));
+		map_ptr[i].dirPath[string_length] = '\0';
+		
+
+
+		// read(fd_read,buffer,(size_t)string_length*sizeof(char));
+		// buffer[string_length] = '\0';
 		write(fd_write,"OK",strlen("OK"));
 
-		printf("buffer %s\n",buffer);
-		free(buffer);
+		// printf("buffer %s\n",buffer);
+		// free(buffer);
 	}
 	
-	// printWorkerMap(&map_ptr,distr);
+	printWorkerMap(&map_ptr,distr);
 
 	close(fd_read);
 	close(fd_write);
 	
-	// deleteWorkerMap(&map_ptr,distr);
+	deleteWorkerMap(&map_ptr,distr);
 	return WORKER_OK;
 }

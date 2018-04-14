@@ -191,14 +191,15 @@ int main(int argc, char* argv[]){
 
 
 				char length[1024];											
+				memset(length,'\0',1024);
 				sprintf(length,"%ld",strlen(string));
-				printf("(Parent) Sending %s\n",length);
+				// printf("(Parent) Sending %s\n",length);
 				write(fd_write,length,1024);								// Send the length of the path as a string
 				
 				char response[3];
 				read(fd_read,response,strlen("OK"));
 				response[2] = '\0';
-				printf("(Parent) %s\n",response);
+				// printf("(Parent) %s\n",response);
 				if(strcmp(response,"OK") == 0)
 					write(fd_write,string,strlen(string));
 
