@@ -12,9 +12,9 @@ typedef struct worker_map{
 
 void printWorkerError(int);
 int workerArgs(int);
-int getTotalLines(char*);
+void freeingMemory(int*, int*, worker_map**,int);
 int createWorkerMap(worker_map**, int);
-int initializeWorkerMap(worker_map**, char*, int,int);
+int initializeWorkerMap(worker_map**, int, int, int);
 void printWorkerMap(worker_map**, int);
 void deleteWorkerMap(worker_map**, int);
-void signal_handler(int);
+int openingPipes(char*, char*, int*, int*);

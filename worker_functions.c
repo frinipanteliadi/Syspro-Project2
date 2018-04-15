@@ -1,7 +1,11 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "worker_functions.h"
 
 /**********************/
@@ -39,14 +43,13 @@ int workerArgs(int arguments){
 	return WORKER_OK;
 }
 
-int getTotalLines(char* buf){
-	int lines = 0;
-	for(int i = 0; i < (int)(strlen(buf)); i++)
-		if(buf[i] == '\n')
-			lines++;
-	return lines;
+/* Frees all of the memory that we allocated during 
+   execution and close all of the files */
+void freeingMemory(int* fd_read, int* fd_write, worker_map** ptr, int distr){
+	close(*fd_read);
+	close(*fd_write);
+	deleteWorkerMap(ptr,distr);
 }
-
 
 /*********************/
 /*** MAP FUNCTIONS ***/
@@ -60,64 +63,17 @@ int createWorkerMap(worker_map** ptr, int size){
 	return WORKER_OK;
 }
 
-/* Initializes the map */
-int initializeWorkerMap(worker_map** ptr, char* buffer, int size,int length){
-	
-	char* string = NULL;
-	char* temp;
-	int j = 0;
-	for(int i = 0; i < size; i++){
-		for(int turn = 0; j < length; turn++, j++){
-			
-			char c;
-			strncpy(&c,&buffer[j],1);
+/* Initializes the i-th member of the Map */
+int initializeWorkerMap(worker_map** ptr, int i, int fd, int string_length){
+	ptr[0][i].dirID = i;
+	ptr[0][i].dirPath = (char*)malloc((string_length+1)*sizeof(char));
+	if(ptr[0][i].dirPath == NULL)
+		return WORKER_MEM_ERROR;
 
-			if(c == '\n'){
-				temp = string;
-				string = (char*)malloc((strlen(temp)+2)*sizeof(char));
-				if(string == NULL)
-					return WORKER_MEM_ERROR;
-				
-				strcpy(string,temp);
-				strcat(string,&c);
+	read(fd,ptr[0][i].dirPath,(size_t)string_length*sizeof(char));
+	ptr[0][i].dirPath[string_length] = '\0';
 
-				string[length] = '\0';
-
-				ptr[0][i].dirID = i;
-				ptr[0][i].dirPath = (char*)malloc((strlen(string)+1)*sizeof(char));
-				if(ptr[0][i].dirPath == NULL)
-					return WORKER_MEM_ERROR;
-
-				strcpy(ptr[0][i].dirPath,string);
-
-				printf("Inserted the string %s\n",string);
-
-				free(string);
-				free(temp);
-				string = NULL;
-				j++;
-				break;
-			}
-			else{
-				if(turn == 0){
-					string = (char*)malloc(sizeof(char));
-					if(string == NULL)
-						return WORKER_MEM_ERROR;
-					strncpy(string,&buffer[j],1);
-				}
-				else{
-					temp = string;
-					string = (char*)malloc((strlen(temp)+1)*sizeof(char));
-					if(string == NULL)
-						return -1;
-					strcpy(string,temp);
-					strcat(string,&c);
-					free(temp);
-				}
-			}
-		}
-	}
-
+	return WORKER_OK;
 }
 
 /* Prints the map (Helpful for debugging) */
@@ -138,11 +94,22 @@ void deleteWorkerMap(worker_map** ptr, int size){
 }
 
 
-/***********************/
-/*** SIGNAL HANDLING ***/
-/***********************/
+/**********************/
+/*** PIPE FUNCTIONS ***/
+/**********************/
 
-void signal_handler(int signo){
-	if(signo == SIGUSR2)
-		printf("\n");
+/* Opens the pipes for reading and writing */
+int openingPipes(char* reading_pipe, char* writing_pipe, 
+	int* fd_read, int* fd_write){
+
+	*fd_read = open(reading_pipe, O_RDONLY);
+	if(*fd_read < 0)
+		return WORKER_OPEN_ERROR;
+
+	*fd_write = open(writing_pipe, O_WRONLY);
+	if(*fd_write < 0)
+		return WORKER_OPEN_ERROR;
+
+	return WORKER_OK;
 }
+

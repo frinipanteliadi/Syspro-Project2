@@ -10,37 +10,26 @@
 
 int main(int argc, char* argv[]){
 
-	struct sigaction act;
-	sigemptyset(&act.sa_mask);
-	// sigaddset(&act.sa_mask, SIGINT);
-	act.sa_handler = signal_handler;
-	act.sa_flags = SA_SIGINFO;
-	if(sigaction(SIGUSR2, &act, NULL) < 0){
-		printf("sigaction failed\n");
-		return WORKER_EXIT;
-	}
-
-
 	int errorCode;
+
 	if(errorCode = workerArgs(argc) != WORKER_OK){
 		printWorkerError(errorCode);
 		return WORKER_EXIT;
 	}
 
 	char* pathname_read = argv[2];		
-	int fd_read = open(argv[2],O_RDONLY);
-	if(fd_read < 0){
-		printWorkerError(WORKER_OPEN_ERROR);
-		return WORKER_EXIT;
-	}
+	int fd_read;
 	
 	char* pathname_write = argv[1];	
-	int fd_write = open(argv[1], O_WRONLY);
-	if(fd_write < 0){
-		printWorkerError(WORKER_OPEN_ERROR);
+	int fd_write;
+	
+	errorCode = openingPipes(pathname_read, pathname_write,
+		&fd_read,&fd_write);
+	if(errorCode != WORKER_OK){
+		printWorkerError(errorCode);
 		return WORKER_EXIT;
 	}
-	
+
 	/*printf("(Child)Reads from: %s\n",argv[2]);
 	printf("(Child)Writes to: %s\n",argv[1]);*/
 	
@@ -67,35 +56,17 @@ int main(int argc, char* argv[]){
 		// printf("(Child) Length %s\n",length);
 		write(fd_write, "OK", strlen("OK"));
 			
+		errorCode = initializeWorkerMap(&map_ptr,i,fd_read,string_length);
+		if(errorCode != WORKER_OK){
+			printWorkerError(errorCode);
+			return WORKER_EXIT;
+		}
 
-		/*char* buffer;
-		buffer = (char*)malloc((string_length+1)*sizeof(char));
-		if(buffer == NULL)
-			return WORKER_MEM_ERROR;*/
-
-		map_ptr[i].dirID = i;
-		map_ptr[i].dirPath = (char*)malloc((string_length+1)*sizeof(char));
-		if(map_ptr[i].dirPath == NULL)
-			return WORKER_MEM_ERROR;
-
-		read(fd_read,map_ptr[i].dirPath,(size_t)string_length*sizeof(char));
-		map_ptr[i].dirPath[string_length] = '\0';
-		
-
-
-		// read(fd_read,buffer,(size_t)string_length*sizeof(char));
-		// buffer[string_length] = '\0';
 		write(fd_write,"OK",strlen("OK"));
-
-		// printf("buffer %s\n",buffer);
-		// free(buffer);
 	}
 	
 	printWorkerMap(&map_ptr,distr);
 
-	close(fd_read);
-	close(fd_write);
-	
-	deleteWorkerMap(&map_ptr,distr);
+	freeingMemory(&fd_read,&fd_write,&map_ptr,distr);
 	return WORKER_OK;
 }

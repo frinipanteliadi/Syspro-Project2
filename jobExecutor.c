@@ -16,16 +16,6 @@
 
 int main(int argc, char* argv[]){
 	
-	struct sigaction act;
-	sigemptyset(&act.sa_mask);
-	// sigaddset(&act.sa_mask, SIGINT);
-	act.sa_handler = signal_handler;
-	act.sa_flags = SA_SIGINFO;
-	if(sigaction(SIGUSR1,&act,NULL) < 0){
-		printf("sigaction failed\n");
-		return EXIT;
-	}
-
 	/****************************/
 	/*** HANDLING THE COMMAND ***/ 
 	/***   LINE ARGUMENTS     ***/
