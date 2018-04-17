@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include "worker_functions.h"
 
 int main(int argc, char* argv[]){
@@ -43,7 +44,7 @@ int main(int argc, char* argv[]){
 		return WORKER_EXIT;
 	}
 
-	printf("** WORKER(%d) **\n",worker_no);							
+	// printf("** WORKER(%d) **\n",worker_no);							
 	
 	char length[1024];
 	int string_length;
@@ -64,9 +65,45 @@ int main(int argc, char* argv[]){
 
 		write(fd_write,"OK",strlen("OK"));
 	}
+	// printWorkerMap(&map_ptr,distr);
 	
-	printWorkerMap(&map_ptr,distr);
+	/****************************/
+	/*** RETRIEVING THE FILES ***/
+	/***        FROM          ***/
+	/***   THE DIRECTORIES    ***/
+	/****************************/
+	
+	int total_files = getNumberOfFilesInDirs(distr,map_ptr);
+	if(total_files < 0){
+		printWorkerError(total_files);
+		return WORKER_EXIT;
+	}
 
+	// printf("Total Number of files: %d\n",total_files);
+		
+	file_info* files_ptr;
+
+	errorCode = manageLines(total_files,&files_ptr,distr,&map_ptr);
+	if(errorCode != WORKER_OK){
+		printWorkerError(errorCode);
+		return WORKER_EXIT;
+	}
+
+	// printLinesStruct(&files_ptr,total_files);
+
+
+	/*******************/
+	/*** TERMINATION ***/
+	/*******************/
+
+	for(int i = 0; i < total_files; i++){
+		for(int j = 0; j < files_ptr[i].total_lines; j++)
+			free(files_ptr[i].file_lines[j].line_content);
+		free(files_ptr[i].file_lines);
+		free(files_ptr[i].file_location);
+		free(files_ptr[i].file_name);
+	}
+	free(files_ptr);
 	freeingMemory(&fd_read,&fd_write,&map_ptr,distr);
 	return WORKER_OK;
 }

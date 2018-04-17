@@ -18,6 +18,8 @@ typedef struct map{
 
 typedef struct pipes{
 	int pipe_id;
+	int pipe_read_fd;
+	int pipe_write_fd;
 	char* pipename_read;
 	char* pipename_write;
 }pipes;
@@ -27,6 +29,7 @@ int CommandLineArg(int);
 int getNumberOfLines(FILE*);
 void distributions(int, int, int*);
 void setDistributions(int, int, int*);
+void welcomeMessage(void);
 int createMap(map**, int);
 int initializeMap(FILE*, map*, int);
 void printMap(map*, int);
@@ -37,6 +40,7 @@ void deletePipe(int***, int);
 int allocatePathname(char**, char**, int);
 void createPathname(char**, char*, char**);
 int allocatePipeArray(pipes**, int);
-int initializePipeArray(pipes**,int, char*, char*);
+int initializePipeArray(pipes**, int, char*, char*, int, int);
+void printPipeArray(pipes**, int);
 void deletePipeArray(pipes**, int);
-void signal_handler(int);
+void closingPipes(pipes**, int);

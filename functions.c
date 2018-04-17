@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <signal.h>
+#include <unistd.h>
 #include "functions.h"
 
 /* Prints an error message according to an error code */
@@ -106,6 +106,7 @@ void distributions(int dirs, int workers, int* array){
 	}
 }
 
+
 void setDistributions(int dirs, int workers, int* array){
 	if(dirs < workers){
 		for(int i = dirs; i < workers; i++)
@@ -114,6 +115,16 @@ void setDistributions(int dirs, int workers, int* array){
 	}
 	else
 		distributions(dirs,workers,array);
+}
+
+void welcomeMessage(void){
+	printf("\nWelcome! Please, choose one of the following");
+	printf(" options to continue.\n");
+	printf("* /search\n");
+	printf("* /maxcount (keyword)\n");
+	printf("* /mincount (keyword)\n");
+	printf("* /wc\n");
+	printf("* /exit\n");
 }
 
 
@@ -208,9 +219,14 @@ int allocatePipeArray(pipes** ptr, int size){
 	return OK;
 }
 
-int initializePipeArray(pipes** ptr,int index, char* read, char* write){
+int initializePipeArray(pipes** ptr,int index, char* read, char* write,
+ int read_fd, int write_fd){
 	ptr[0][index].pipe_id = index;
 	
+	ptr[0][index].pipe_read_fd = read_fd;
+
+	ptr[0][index].pipe_write_fd = write_fd;
+
 	ptr[0][index].pipename_read = (char*)malloc(strlen(read)+1);
 	if(ptr[0][index].pipename_read == NULL)
 		return MEM_ERROR;
@@ -224,6 +240,18 @@ int initializePipeArray(pipes** ptr,int index, char* read, char* write){
 	return OK;
 }
 
+void printPipeArray(pipes** ptr, int size){
+	for(int i = 0; i < size; i++){
+		printf("*******************\n");
+		printf("* PipeID: %d\n",ptr[0][i].pipe_id);
+		printf("* Reading Pipe Fd: %d\n",ptr[0][i].pipe_read_fd);
+		printf("* Writing Pipe Fd: %d\n",ptr[0][i].pipe_write_fd);
+		printf("* Pipe for Reading: %s\n",ptr[0][i].pipename_read);
+		printf("* Pipe for Writing: %s\n",ptr[0][i].pipename_write);
+		printf("*******************\n\n");
+	}
+}
+
 void deletePipeArray(pipes** ptr, int size){
 	for(int i = 0; i < size; i++){
 		free(ptr[0][i].pipename_read);
@@ -233,12 +261,10 @@ void deletePipeArray(pipes** ptr, int size){
 	free(*ptr);
 }
 
-
-/***********************/
-/*** SIGNAL HANDLING ***/
-/***********************/
-
-void signal_handler(int signo){
-	if(signo == SIGUSR1)
-		return;
+void closingPipes(pipes** ptr, int size){
+	for(int i = 0; i < size; i++){
+		close(ptr[0][i].pipe_read_fd);
+		close(ptr[0][i].pipe_write_fd);
+	}
 }
+

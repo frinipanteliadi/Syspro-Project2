@@ -116,13 +116,6 @@ int main(int argc, char* argv[]){
 
 		createPathname(&pathname_read,buffer,&pathname_write);				
 		
-		errorCode = initializePipeArray(&pipes_ptr,i,
-			pathname_read,pathname_write);
-		if(errorCode != OK){
-			printErrorMessage(errorCode);
-			return EXIT;
-		}
-
 		/*printf("(Parent)Reads from: %s\n",pathname_read);
 		printf("(Parent)Writes to: %s\n",pathname_write);*/
 		
@@ -166,6 +159,13 @@ int main(int argc, char* argv[]){
 				return EXIT;
 			}
 
+			errorCode = initializePipeArray(&pipes_ptr,i,
+				pathname_read,pathname_write,fd_read,fd_write);
+			if(errorCode != OK){
+				printErrorMessage(errorCode);
+				return EXIT;
+			}
+
 			for(j = 0; j < distr[i]; j++, current_map_position++){
 				
 				int k = current_map_position;
@@ -200,18 +200,62 @@ int main(int argc, char* argv[]){
 					return EXIT;
 			}
 									
-			close(fd_write);
-			close(fd_read);
+			// close(fd_write);
+			// close(fd_read);
 		}
 
 		free(pathname_read);
 		free(pathname_write);
 	}
 
+	// welcomeMessage();
+	// printf("\n");
+
+	// char *input = NULL;
+	// size_t n = 0;
+	// while(getline(&input,&n,stdin)!=-1){
+	// 	input = strtok(input,"\n");					
+		
+	// 	char* operation = strtok(input," \t");		
+	// 	char* arguments = strtok(NULL,"\n");		
+		
+	// 	if(strcmp(operation,"/search") == 0){
+	// 		printf("SEARCH\n");
+	// 		break;
+	// 	}
+	// 	else if(strcmp(operation,"/maxcount") == 0){
+	// 		printf("MAXCOUNT\n");
+	// 		break;
+	// 	}
+	// 	else if(strcmp(operation,"/mincount") == 0){
+	// 		printf("MINCOUNT\n");
+	// 		break;
+	// 	}
+	// 	else if(strcmp(operation,"/wc") == 0){
+	// 		printf("WC\n");
+	// 		break;
+	// 	}
+	// 	else if(strcmp(operation,"/exit") == 0){
+	// 		printf("Exiting the application\n");
+	// 		break;
+	// 	}
+	// 	else
+	// 		printf("Invalid input. Try again\n");
+	// 	printf("\n\n");
+	// }
+
+	// printf("\n");
+	// free(input);
+
+	// printPipeArray(&pipes_ptr,numWorkers);
+
 	/***************************/
 	/*** DEALLOCATING MEMORY ***/
+	/***        AND          ***/
+	/***  CLOSING THE PIPES  ***/
 	/***************************/
 
+	closingPipes(&pipes_ptr,numWorkers);
 	deletePipeArray(&pipes_ptr,numWorkers);
 	deleteMap(&mapPtr,total_directories);
 }
