@@ -18,6 +18,11 @@ int main(int argc, char* argv[]){
 		return WORKER_EXIT;
 	}
 
+	/****************************/
+	/*** GETTING THE NAMES OF ***/ 
+	/***      THE PIPES       ***/
+	/****************************/
+
 	char* pathname_read = argv[2];		
 	int fd_read;
 	
@@ -46,6 +51,11 @@ int main(int argc, char* argv[]){
 
 	// printf("** WORKER(%d) **\n",worker_no);							
 	
+	/********************************/
+	/*** FETCHING THE DIRECTORIES ***/
+	/***       VIA PIPES          ***/ 
+	/********************************/
+
 	char length[1024];
 	int string_length;
 	for(int i = 0; i < distr; i++){
@@ -65,6 +75,7 @@ int main(int argc, char* argv[]){
 
 		write(fd_write,"OK",strlen("OK"));
 	}
+	
 	// printWorkerMap(&map_ptr,distr);
 	
 	/****************************/
@@ -72,38 +83,75 @@ int main(int argc, char* argv[]){
 	/***        FROM          ***/
 	/***   THE DIRECTORIES    ***/
 	/****************************/
-	
-	int total_files = getNumberOfFilesInDirs(distr,map_ptr);
-	if(total_files < 0){
-		printWorkerError(total_files);
-		return WORKER_EXIT;
-	}
-
-	// printf("Total Number of files: %d\n",total_files);
 		
-	file_info* files_ptr;
+	for(int i = 0; i < distr; i++){
+		
+		/* Get the name of the directory's path in 
+		   the right form for scandir() */
+		char* name;
+		name = (char*)malloc((strlen(map_ptr[i].dirPath)+1)*sizeof(char));
+		if(name == NULL)
+			return WORKER_MEM_ERROR;
+		strncpy(name,map_ptr[i].dirPath,strlen(map_ptr[i].dirPath)-1);
+		name[strlen(map_ptr[i].dirPath)-1] = '/';
+		name[strlen(map_ptr[i].dirPath)] = '\0';
+		
+		// printf("* Directory: %s\n",name);
 
-	errorCode = manageLines(total_files,&files_ptr,distr,&map_ptr);
-	if(errorCode != WORKER_OK){
-		printWorkerError(errorCode);
-		return WORKER_EXIT;
+		/* Scan the directory */
+		struct dirent **entry;
+		int n = scandir(name,&entry,NULL,alphasort);
+		int actual_files = n-2;
+		if(n < 0){
+			printf("Failed to scan the directory %s\n",name);
+			return -1;
+		}
+		map_ptr[i].total_files = actual_files;
+		
+
+		map_ptr[i].dirFiles = (file_info*)malloc(map_ptr[i].total_files*sizeof(file_info));
+		if(map_ptr[i].dirFiles == NULL)
+			return WORKER_MEM_ERROR;
+
+		file_info* temp_ptr;
+		temp_ptr = map_ptr[i].dirFiles;
+
+		for(int k = 2, j = 0; k < n; k++, j++){
+			temp_ptr[j].file_name = (char*)malloc((strlen(entry[k]->d_name)+1)*sizeof(char));
+			if(temp_ptr[j].file_name == NULL)
+			return WORKER_MEM_ERROR;
+			strncpy(temp_ptr[j].file_name,entry[k]->d_name,strlen(entry[k]->d_name));
+			temp_ptr[j].file_name[strlen(entry[k]->d_name)] = '\0'; 
+		}
+
+		/* We must release the memory that scandir() allocated */
+		for(int j = 0; j < n; j++)
+			free(entry[j]);
+		free(entry);
+		free(name);
 	}
 
-	// printLinesStruct(&files_ptr,total_files);
-
+	printWorkerMap(&map_ptr,distr);
+	
+	for(int i = 0; i < distr; i++){
+		printf("*dirPath: %s\n",map_ptr[i].dirPath);
+		for(int j = 0; j < map_ptr[i].total_files; j++)
+			printf(" -Name: %s\n",map_ptr[i].dirFiles[j].file_name);
+	}
 
 	/*******************/
 	/*** TERMINATION ***/
 	/*******************/
 
-	for(int i = 0; i < total_files; i++){
-		for(int j = 0; j < files_ptr[i].total_lines; j++)
-			free(files_ptr[i].file_lines[j].line_content);
-		free(files_ptr[i].file_lines);
-		free(files_ptr[i].file_location);
-		free(files_ptr[i].file_name);
+	for(int i = 0; i < distr; i++){
+		free(map_ptr[i].dirPath);
+
+		for(int j = 0; j < map_ptr[i].total_files; j++)
+			free(map_ptr[i].dirFiles[j].file_name);
+
+		free(map_ptr[i].dirFiles);
 	}
-	free(files_ptr);
-	freeingMemory(&fd_read,&fd_write,&map_ptr,distr);
+	free(map_ptr);
+
 	return WORKER_OK;
 }
