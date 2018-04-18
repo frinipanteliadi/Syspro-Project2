@@ -122,6 +122,13 @@ int main(int argc, char* argv[]){
 			return WORKER_MEM_ERROR;
 			strncpy(temp_ptr[j].file_name,entry[k]->d_name,strlen(entry[k]->d_name));
 			temp_ptr[j].file_name[strlen(entry[k]->d_name)] = '\0'; 
+		
+
+			temp_ptr[j].full_path = (char*)malloc((strlen(name)+strlen(entry[k]->d_name)+1)*sizeof(char));
+			if(temp_ptr[j].full_path == NULL)
+				return WORKER_MEM_ERROR;
+			strcpy(temp_ptr[j].full_path,name);
+			strcat(temp_ptr[j].full_path,entry[k]->d_name);
 		}
 
 		/* We must release the memory that scandir() allocated */
@@ -134,9 +141,12 @@ int main(int argc, char* argv[]){
 	printWorkerMap(&map_ptr,distr);
 	
 	for(int i = 0; i < distr; i++){
-		printf("*dirPath: %s\n",map_ptr[i].dirPath);
-		for(int j = 0; j < map_ptr[i].total_files; j++)
+		printf("\n\n");
+		printf("*dirPath: %s",map_ptr[i].dirPath);
+		for(int j = 0; j < map_ptr[i].total_files; j++){
 			printf(" -Name: %s\n",map_ptr[i].dirFiles[j].file_name);
+			printf(" -Path: %s\n",map_ptr[i].dirFiles[j].full_path);
+		}
 	}
 
 	/*******************/
@@ -146,8 +156,10 @@ int main(int argc, char* argv[]){
 	for(int i = 0; i < distr; i++){
 		free(map_ptr[i].dirPath);
 
-		for(int j = 0; j < map_ptr[i].total_files; j++)
+		for(int j = 0; j < map_ptr[i].total_files; j++){
 			free(map_ptr[i].dirFiles[j].file_name);
+			free(map_ptr[i].dirFiles[j].full_path);
+		}
 
 		free(map_ptr[i].dirFiles);
 	}
