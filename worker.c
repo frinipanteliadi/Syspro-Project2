@@ -84,21 +84,34 @@ int main(int argc, char* argv[]){
 	/***   THE DIRECTORIES    ***/
 	/****************************/
 	
-	errorCode = fileInformation	(distr,&map_ptr);
+	errorCode = fileInformation(distr,&map_ptr);
 	if(errorCode != WORKER_OK)
 		return -1;
 
-	printWorkerMap(&map_ptr,distr);
+	// printWorkerMap(&map_ptr,distr);
 	
-	for(int i = 0; i < distr; i++){
-		printf("\n\n");
-		printf("*dirPath: %s",map_ptr[i].dirPath);
-		for(int j = 0; j < map_ptr[i].total_files; j++){
-			printf(" -Name: %s\n",map_ptr[i].dirFiles[j].file_name);
-			printf(" -Path: %s\n",map_ptr[i].dirFiles[j].full_path);
-		}
-	}
+	errorCode = setLines(distr,&map_ptr);
+	if(errorCode != WORKER_OK)
+		return -1;
 
+	errorCode = readLines(distr,&map_ptr);
+
+	// for(int i = 0; i < distr; i++){
+	// 	printf("\n\n");
+	// 	printf("*Directory: %s",map_ptr[i].dirPath);
+	// 	for(int j = 0; j < map_ptr[i].total_files; j++){
+	// 		printf("\n");
+	// 		printf(" -Name: %s\n",map_ptr[i].dirFiles[j].file_name);
+	// 		printf(" -Path: %s\n",map_ptr[i].dirFiles[j].full_path);
+	// 		printf(" -Lines: %d\n",map_ptr[i].dirFiles[j].lines);
+
+	// 		for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++)
+	// 			printf("Line%d) %s\n",k,map_ptr[i].dirFiles[j].ptr[k].line_content);
+			
+	// 	}
+	// }
+
+	
 	/*******************/
 	/*** TERMINATION ***/
 	/*******************/
@@ -109,6 +122,11 @@ int main(int argc, char* argv[]){
 		for(int j = 0; j < map_ptr[i].total_files; j++){
 			free(map_ptr[i].dirFiles[j].file_name);
 			free(map_ptr[i].dirFiles[j].full_path);
+			
+			for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++)
+				free(map_ptr[i].dirFiles[j].ptr[k].line_content);
+
+			free(map_ptr[i].dirFiles[j].ptr);
 		}
 
 		free(map_ptr[i].dirFiles);

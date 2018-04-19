@@ -7,29 +7,21 @@
 #define WORKER_DIR_CLOSE_ERROR -6
 #define WORKER_EXIT -7
 
-typedef enum bool {False, True} bool;
-
-typedef struct trie_node{
-	char letter;															// Letter stored in the node
-	bool is_end_of_word;													// Flag to indicate that the current letter is a final one
-	struct trie_node* children;												// Points at the node's children
-	struct trie_node* next;													// Points at the node which is next on the same level
-}trie_node;
-
-typedef struct line{
-	int line_id;
+/* One for each line of a certain file */
+typedef struct line_info{
+	int id;
 	char* line_content;
-}line;
+}line_info;
 
 /* One for each file of the directory*/
 typedef struct file_info{
 	char* file_name;
 	char* full_path;
 	int lines;
-	line* ptr;
+	line_info* ptr;
 }file_info;
 
-/* Holds every directory that was provided */
+/* One for every directory that was provided */
 typedef struct worker_map{
 	int dirID;
 	char* dirPath;
@@ -50,3 +42,9 @@ int openingPipes(char*, char*, int*, int*);
 
 int getNumberOfLines(FILE*);
 int fileInformation(int, worker_map**);
+
+int setLines(int, worker_map**);
+
+int initializeLinePointer(int, worker_map**);
+
+int readLines(int, worker_map**);

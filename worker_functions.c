@@ -194,3 +194,74 @@ int fileInformation(int distr, worker_map** map_ptr){
 	}
 	return WORKER_OK;
 }
+
+int setLines(int distr, worker_map** map_ptr){
+
+	for(int i = 0; i < distr; i++){
+
+		for(int j = 0; j < map_ptr[0][i].total_files; j++){
+
+			file_info* temp_ptr;
+			temp_ptr = map_ptr[0][i].dirFiles;
+
+			FILE* fp;
+			fp = fopen(temp_ptr[j].full_path,"r");
+			if(fp == NULL){
+				printf("Failed to open the file: %s\n",temp_ptr[j].file_name);
+				return -1;
+			}
+
+			temp_ptr[j].lines = getNumberOfLines(fp);
+
+			rewind(fp);
+			if(fclose(fp) != 0){
+				printf("Failed to close the file: %s\n",temp_ptr[j].file_name);
+				return -1;
+			}
+		}
+	}
+	return WORKER_OK;
+}
+
+int readLines(int distr, worker_map** map_ptr){
+
+	for(int i = 0; i < distr; i++){
+		for(int j = 0; j < map_ptr[0][i].total_files; j++){
+
+			map_ptr[0][i].dirFiles[j].ptr = (line_info*)malloc(map_ptr[0][i].dirFiles[j].lines*sizeof(line_info));
+			if(map_ptr[0][i].dirFiles[j].ptr == NULL)
+				return WORKER_MEM_ERROR;
+		
+			FILE* fp;
+			fp = fopen(map_ptr[0][i].dirFiles[j].full_path,"r");
+			if(fp == NULL){
+				printf("Failed to open the file: %s\n",map_ptr[0][i].dirFiles[j].file_name);
+				return -1;
+			}
+
+			int k = 0;
+			size_t n = 0;
+			char* line = NULL;
+			while(getline(&line,&n,fp) != -1){
+
+				map_ptr[0][i].dirFiles[j].ptr[k].line_content = (char*)malloc((strlen(line)+1)*sizeof(char));
+				if(map_ptr[0][i].dirFiles[j].ptr[k].line_content == NULL)
+					return WORKER_MEM_ERROR;
+				strcpy(map_ptr[0][i].dirFiles[j].ptr[k].line_content,line);
+			
+				map_ptr[0][i].dirFiles[j].ptr[k].id = k;
+				k++;
+			}
+
+			free(line);
+			rewind(fp);
+
+			if(fclose(fp) != 0){
+				printf("Failed to close the file: %s\n",map_ptr[0][i].dirFiles[j].file_name);
+				return -1;
+			}
+		}
+	}
+
+	return WORKER_OK;
+}
