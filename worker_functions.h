@@ -49,3 +49,4 @@ void deleteWorkerMap(worker_map**, int);
 int openingPipes(char*, char*, int*, int*);
 
 int getNumberOfLines(FILE*);
+int fileInformation(int, worker_map**);

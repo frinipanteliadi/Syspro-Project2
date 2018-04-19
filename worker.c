@@ -83,60 +83,10 @@ int main(int argc, char* argv[]){
 	/***        FROM          ***/
 	/***   THE DIRECTORIES    ***/
 	/****************************/
-		
-	for(int i = 0; i < distr; i++){
-		
-		/* Get the name of the directory's path in 
-		   the right form for scandir() */
-		char* name;
-		name = (char*)malloc((strlen(map_ptr[i].dirPath)+1)*sizeof(char));
-		if(name == NULL)
-			return WORKER_MEM_ERROR;
-		strncpy(name,map_ptr[i].dirPath,strlen(map_ptr[i].dirPath)-1);
-		name[strlen(map_ptr[i].dirPath)-1] = '/';
-		name[strlen(map_ptr[i].dirPath)] = '\0';
-		
-		// printf("* Directory: %s\n",name);
-
-		/* Scan the directory */
-		struct dirent **entry;
-		int n = scandir(name,&entry,NULL,alphasort);
-		int actual_files = n-2;
-		if(n < 0){
-			printf("Failed to scan the directory %s\n",name);
-			return -1;
-		}
-		map_ptr[i].total_files = actual_files;
-		
-
-		map_ptr[i].dirFiles = (file_info*)malloc(map_ptr[i].total_files*sizeof(file_info));
-		if(map_ptr[i].dirFiles == NULL)
-			return WORKER_MEM_ERROR;
-
-		file_info* temp_ptr;
-		temp_ptr = map_ptr[i].dirFiles;
-
-		for(int k = 2, j = 0; k < n; k++, j++){
-			temp_ptr[j].file_name = (char*)malloc((strlen(entry[k]->d_name)+1)*sizeof(char));
-			if(temp_ptr[j].file_name == NULL)
-			return WORKER_MEM_ERROR;
-			strncpy(temp_ptr[j].file_name,entry[k]->d_name,strlen(entry[k]->d_name));
-			temp_ptr[j].file_name[strlen(entry[k]->d_name)] = '\0'; 
-		
-
-			temp_ptr[j].full_path = (char*)malloc((strlen(name)+strlen(entry[k]->d_name)+1)*sizeof(char));
-			if(temp_ptr[j].full_path == NULL)
-				return WORKER_MEM_ERROR;
-			strcpy(temp_ptr[j].full_path,name);
-			strcat(temp_ptr[j].full_path,entry[k]->d_name);
-		}
-
-		/* We must release the memory that scandir() allocated */
-		for(int j = 0; j < n; j++)
-			free(entry[j]);
-		free(entry);
-		free(name);
-	}
+	
+	errorCode = fileInformation	(distr,&map_ptr);
+	if(errorCode != WORKER_OK)
+		return -1;
 
 	printWorkerMap(&map_ptr,distr);
 	
