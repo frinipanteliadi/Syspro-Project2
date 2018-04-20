@@ -265,3 +265,38 @@ int readLines(int distr, worker_map** map_ptr){
 
 	return WORKER_OK;
 }
+
+int initializeStructs(int distr, worker_map** map_ptr){
+
+	int errorCode;
+	
+	errorCode = fileInformation(distr,map_ptr);
+	if(errorCode != WORKER_OK)
+		return errorCode;
+
+	errorCode = setLines(distr,map_ptr);
+	if(errorCode != WORKER_OK)
+		return errorCode;
+
+	errorCode = readLines(distr,map_ptr);
+	if(errorCode != WORKER_OK)
+		return errorCode;
+
+	return WORKER_OK;
+}
+
+void printDirectory(int distr, worker_map** map_ptr){
+	for(int i = 0; i < distr; i++){
+		printf("\n\n");
+		printf("*Directory: %s",map_ptr[0][i].dirPath);
+		for(int j = 0; j < map_ptr[0][i].total_files; j++){
+			printf("\n");
+			printf(" -Name: %s\n",map_ptr[0][i].dirFiles[j].file_name);
+			printf(" -Path: %s\n",map_ptr[0][i].dirFiles[j].full_path);
+			printf(" -Lines: %d\n",map_ptr[0][i].dirFiles[j].lines);
+
+			for(int k = 0; k < map_ptr[0][i].dirFiles[j].lines; k++)
+				printf("Line%d) %s\n",k,map_ptr[0][i].dirFiles[j].ptr[k].line_content);		
+		}
+	}
+}

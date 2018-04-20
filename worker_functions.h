@@ -48,3 +48,7 @@ int setLines(int, worker_map**);
 int initializeLinePointer(int, worker_map**);
 
 int readLines(int, worker_map**);
+
+int initializeStructs(int, worker_map**);
+
+void printDirectory(int, worker_map**);

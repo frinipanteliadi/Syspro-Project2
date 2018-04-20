@@ -84,17 +84,25 @@ int main(int argc, char* argv[]){
 	/***   THE DIRECTORIES    ***/
 	/****************************/
 	
-	errorCode = fileInformation(distr,&map_ptr);
-	if(errorCode != WORKER_OK)
-		return -1;
+	// errorCode = fileInformation(distr,&map_ptr);
+	// if(errorCode != WORKER_OK)
+	// 	return -1;
 
 	// printWorkerMap(&map_ptr,distr);
 	
-	errorCode = setLines(distr,&map_ptr);
-	if(errorCode != WORKER_OK)
-		return -1;
+	// errorCode = setLines(distr,&map_ptr);
+	// if(errorCode != WORKER_OK)
+	// 	return -1;
 
-	errorCode = readLines(distr,&map_ptr);
+	// errorCode = readLines(distr,&map_ptr);
+
+	errorCode = initializeStructs(distr,&map_ptr);
+	if(errorCode != WORKER_OK){
+		printf("ERROR!\n");
+		return -1;
+	}
+
+	printDirectory(distr, &map_ptr);
 
 	// for(int i = 0; i < distr; i++){
 	// 	printf("\n\n");
