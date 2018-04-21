@@ -76,7 +76,7 @@ int main(int argc, char* argv[]){
 		write(fd_write,"OK",strlen("OK"));
 	}
 	
-	// printWorkerMap(&map_ptr,distr);
+	printWorkerMap(&map_ptr,distr);
 	
 	/****************************/
 	/*** RETRIEVING THE FILES ***/
@@ -84,18 +84,6 @@ int main(int argc, char* argv[]){
 	/***   THE DIRECTORIES    ***/
 	/****************************/
 	
-	// errorCode = fileInformation(distr,&map_ptr);
-	// if(errorCode != WORKER_OK)
-	// 	return -1;
-
-	// printWorkerMap(&map_ptr,distr);
-	
-	// errorCode = setLines(distr,&map_ptr);
-	// if(errorCode != WORKER_OK)
-	// 	return -1;
-
-	// errorCode = readLines(distr,&map_ptr);
-
 	errorCode = initializeStructs(distr,&map_ptr);
 	if(errorCode != WORKER_OK){
 		printf("ERROR!\n");
@@ -104,42 +92,40 @@ int main(int argc, char* argv[]){
 
 	printDirectory(distr, &map_ptr);
 
-	// for(int i = 0; i < distr; i++){
-	// 	printf("\n\n");
-	// 	printf("*Directory: %s",map_ptr[i].dirPath);
-	// 	for(int j = 0; j < map_ptr[i].total_files; j++){
-	// 		printf("\n");
-	// 		printf(" -Name: %s\n",map_ptr[i].dirFiles[j].file_name);
-	// 		printf(" -Path: %s\n",map_ptr[i].dirFiles[j].full_path);
-	// 		printf(" -Lines: %d\n",map_ptr[i].dirFiles[j].lines);
-
-	// 		for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++)
-	// 			printf("Line%d) %s\n",k,map_ptr[i].dirFiles[j].ptr[k].line_content);
-			
-	// 	}
-	// }
-
+	/* Creating the root of the Trie */
+	trieNode* root;
+	errorCode = createRoot(&root);
 	
+	errorCode = initializeTrie(distr,&map_ptr,root);
+	if(errorCode != WORKER_OK)
+		return -1;
+
 	/*******************/
 	/*** TERMINATION ***/
 	/*******************/
 
 	for(int i = 0; i < distr; i++){
+		free(map_ptr[i].dirID);
 		free(map_ptr[i].dirPath);
 
 		for(int j = 0; j < map_ptr[i].total_files; j++){
+			free(map_ptr[i].dirFiles[j].file_id);
 			free(map_ptr[i].dirFiles[j].file_name);
 			free(map_ptr[i].dirFiles[j].full_path);
 			
-			for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++)
+			for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++){
 				free(map_ptr[i].dirFiles[j].ptr[k].line_content);
+				free(map_ptr[i].dirFiles[j].ptr[k].id);
+			}
 
 			free(map_ptr[i].dirFiles[j].ptr);
 		}
 
 		free(map_ptr[i].dirFiles);
 	}
+	
 	free(map_ptr);
-
+	// free(root);
+	destroyTrie(root);
 	return WORKER_OK;
 }

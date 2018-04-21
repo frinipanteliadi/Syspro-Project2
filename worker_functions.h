@@ -7,26 +7,40 @@
 #define WORKER_DIR_CLOSE_ERROR -6
 #define WORKER_EXIT -7
 
+/* False = 0, True = 1 */
+typedef enum bool {False, True} bool;
+
+/* Each node of the Trie structure */
+typedef struct trieNode{
+	char letter;															/*Letter stored inside the node*/
+	bool isEndOfWord;														/*Flag which indicated whether a word ends in the current node*/
+	struct trieNode* children;												/*Points at a child node*/
+	struct trieNode* next;													/*Points at the next sibling node*/
+}trieNode;
+
 /* One for each line of a certain file */
 typedef struct line_info{
-	int id;
-	char* line_content;
+	char* id;
+	// int id;																	/*ID given to the line*/
+	char* line_content;														/*The actual line*/
 }line_info;
 
 /* One for each file of the directory*/
 typedef struct file_info{
-	char* file_name;
-	char* full_path;
-	int lines;
-	line_info* ptr;
+	char* file_id;
+	char* file_name;														/*The name of the file*/
+	char* full_path;														/*The full path of the file*/
+	int lines;																/*Total number of lines the file has*/
+	line_info* ptr;															/*Points at the structure which holds the lines of the file*/
 }file_info;
 
 /* One for every directory that was provided */
 typedef struct worker_map{
-	int dirID;
-	char* dirPath;
-	int total_files;
-	file_info *dirFiles;
+	// int dirID;
+	char* dirID;																/*ID given to the directory*/
+	char* dirPath;															/*The path of the directory*/
+	int total_files;														/*Total number of files inside the directory*/
+	file_info *dirFiles;													/*Points at the structure which holds the files of the directory*/
 }worker_map;
 
 
@@ -52,3 +66,13 @@ int readLines(int, worker_map**);
 int initializeStructs(int, worker_map**);
 
 void printDirectory(int, worker_map**);
+
+int createRoot(trieNode**);
+
+int compareKeys(char*, char*);
+
+int insertTrie(trieNode*, char*);
+
+int initializeTrie(int, worker_map**, trieNode*);
+
+void destroyTrie(trieNode*);
