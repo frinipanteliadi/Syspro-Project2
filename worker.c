@@ -56,27 +56,13 @@ int main(int argc, char* argv[]){
 	/***       VIA PIPES          ***/ 
 	/********************************/
 
-	char length[1024];
-	int string_length;
-	for(int i = 0; i < distr; i++){
-		
-		read(fd_read,length,1024);												// Read the length of the path
-		length[strlen(length)]='\0';
-		string_length = atoi(length);
-
-		// printf("(Child) Length %s\n",length);
-		write(fd_write, "OK", strlen("OK"));
-			
-		errorCode = initializeWorkerMap(&map_ptr,i,fd_read,string_length);
-		if(errorCode != WORKER_OK){
-			printWorkerError(errorCode);
-			return WORKER_EXIT;
-		}
-
-		write(fd_write,"OK",strlen("OK"));
+	errorCode = readDirectories(fd_read, fd_write, distr, &map_ptr);
+	if(errorCode != WORKER_OK){
+		printWorkerError(errorCode);
+		return WORKER_EXIT;
 	}
 	
-	printWorkerMap(&map_ptr,distr);
+	// printWorkerMap(&map_ptr,distr);
 	
 	/****************************/
 	/*** RETRIEVING THE FILES ***/
@@ -90,7 +76,7 @@ int main(int argc, char* argv[]){
 		return -1;
 	}
 
-	printDirectory(distr, &map_ptr);
+	// printDirectory(distr, &map_ptr);
 
 	/* Creating the root of the Trie */
 	trieNode* root;
@@ -100,9 +86,18 @@ int main(int argc, char* argv[]){
 	if(errorCode != WORKER_OK)
 		return -1;
 
+	char* arguments;
+	errorCode = getArguments(fd_read,fd_write,&arguments);
+	// printf("*WORKER: Arguments: %s\n",arguments );
+
+
+	// printWorkerMap(&map_ptr,distr);
+	
+
 	/*******************/
 	/*** TERMINATION ***/
 	/*******************/
+
 
 	for(int i = 0; i < distr; i++){
 		free(map_ptr[i].dirID);
@@ -124,8 +119,11 @@ int main(int argc, char* argv[]){
 		free(map_ptr[i].dirFiles);
 	}
 	
+
+	close(fd_write);
+	close(fd_read);
+	free(arguments);
 	free(map_ptr);
-	// free(root);
 	destroyTrie(root);
 	return WORKER_OK;
 }

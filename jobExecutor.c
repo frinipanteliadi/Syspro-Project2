@@ -208,44 +208,68 @@ int main(int argc, char* argv[]){
 		free(pathname_write);
 	}
 
-	// welcomeMessage();
-	// printf("\n");
+	welcomeMessage();
+	printf("\n");
 
-	// char *input = NULL;
-	// size_t n = 0;
-	// while(getline(&input,&n,stdin)!=-1){
-	// 	input = strtok(input,"\n");					
+	size_t n = 0;
+	char* input = NULL;
+	while(getline(&input,&n,stdin)!=-1){
+		input = strtok(input,"\n");					
 		
-	// 	char* operation = strtok(input," \t");		
-	// 	char* arguments = strtok(NULL,"\n");		
+		char* operation = strtok(input," \t");		
+		char* arguments = strtok(NULL,"\n");		
 		
-	// 	if(strcmp(operation,"/search") == 0){
-	// 		printf("SEARCH\n");
-	// 		break;
-	// 	}
-	// 	else if(strcmp(operation,"/maxcount") == 0){
-	// 		printf("MAXCOUNT\n");
-	// 		break;
-	// 	}
-	// 	else if(strcmp(operation,"/mincount") == 0){
-	// 		printf("MINCOUNT\n");
-	// 		break;
-	// 	}
-	// 	else if(strcmp(operation,"/wc") == 0){
-	// 		printf("WC\n");
-	// 		break;
-	// 	}
-	// 	else if(strcmp(operation,"/exit") == 0){
-	// 		printf("Exiting the application\n");
-	// 		break;
-	// 	}
-	// 	else
-	// 		printf("Invalid input. Try again\n");
-	// 	printf("\n\n");
-	// }
+		if(strcmp(operation,"/search") == 0){
+			for(int i = 0; i < numWorkers; i++){
+				char args_length[1024];
+				memset(args_length,'\0',1024);
+				sprintf(args_length,"%ld",strlen(arguments));
+				write(pipes_ptr[i].pipe_write_fd,args_length,1024);
 
-	// printf("\n");
-	// free(input);
+				char response[3];
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") == 0)
+					write(pipes_ptr[i].pipe_write_fd,arguments,strlen(arguments));
+
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+			}
+		}
+		// else if(strcmp(operation,"/maxcount") == 0){
+		// 	errorCode = maxCountOperation();
+		// 	if(errorCode != OK){
+		// 		printErrorMessage(errorCode);
+		// 		break;
+		// 	}
+		// }
+		// else if(strcmp(operation,"/mincount") == 0){
+		// 	errorCode = minCountOperation();
+		// 	if(errorCode != OK){
+		// 		printErrorMessage(errorCode);
+		// 		break;
+		// 	}			
+		// }
+		// else if(strcmp(operation,"/wc") == 0){
+		// 	errorCode = wcOperation();
+		// 	if(errorCode != OK){
+		// 		printErrorMessage(errorCode);
+		// 		break;
+		// 	}
+		// }
+		else if(strcmp(operation,"/exit") == 0){
+			printf("Exiting the application\n");
+			break;
+		}
+		else
+			printf("Invalid input. Try again\n");
+		printf("\n\n");
+	}
+
+	printf("\n");
+	free(input);
 
 	// printPipeArray(&pipes_ptr,numWorkers);
 

@@ -337,6 +337,9 @@ void printDirectory(int distr, worker_map** map_ptr){
 	}
 }
 
+/**********************/
+/*** TRIE FUNCTIONS ***/
+/**********************/
 
 /* Creates and initializes the root of the Trie */
 int createRoot(trieNode **root){
@@ -349,6 +352,7 @@ int createRoot(trieNode **root){
 	(**root).isEndOfWord = False;
 	(**root).children = NULL;
 	(**root).next = NULL;
+	(**root).listPtr = NULL;
 
 	return WORKER_OK;
 }
@@ -360,7 +364,7 @@ int compareKeys(char* a, char* b){
 } 
 
 /* Inserts a new value (word) in the Trie */
-int insertTrie(trieNode* node, char* word){
+int insertTrie(trieNode* node, char* word, char* id){
 	trieNode* temp = node; 
 	trieNode* parent = node;
 	trieNode* previous = NULL;
@@ -382,11 +386,15 @@ int insertTrie(trieNode* node, char* word){
 			temp->children->isEndOfWord = False;
 			temp->children->children = NULL;
 			temp->children->next = NULL;
+			temp->children->listPtr = NULL;
 
 			temp = temp->children;
 
 			if(i == strlen(word)-1) {
 				temp->isEndOfWord = True;
+				errorCode = addList(&(temp->listPtr), id, word);
+				if(errorCode != WORKER_OK)
+					return errorCode;
 			}
 		}
 
@@ -416,6 +424,7 @@ int insertTrie(trieNode* node, char* word){
 				temp->letter = word[i];
 				temp->isEndOfWord = False;
 				temp->children = NULL;
+				temp->listPtr = NULL;
 			}
 
 			if(value < 0){
@@ -434,6 +443,7 @@ int insertTrie(trieNode* node, char* word){
 					previous->isEndOfWord = False;
 					previous->children = NULL;
 					previous->next = temp;
+					previous->listPtr = NULL;
 					parent->children = previous;
 					temp = previous;
 				}
@@ -446,12 +456,16 @@ int insertTrie(trieNode* node, char* word){
 					temp->isEndOfWord = False;
 					temp->children = NULL;
 					temp->next = previous->next;
+					temp->listPtr = NULL;
 					previous->next = temp;
 				}
 			}
 
 			if(i == strlen(word)-1) {
 				temp->isEndOfWord = True;
+				errorCode = addList(&(temp->listPtr), id, word);
+				if(errorCode != WORKER_OK)
+					return errorCode;
 			}
 			
 			previous = NULL;	
@@ -490,7 +504,7 @@ int initializeTrie(int distr, worker_map** map_ptr, trieNode* node){
 						strncpy(tmp,token,strlen(token)-1);
 						tmp[strlen(token)-1] = '\0';
 
-						errorCode = insertTrie(node,tmp);
+						errorCode = insertTrie(node,tmp,map_ptr[0][i].dirFiles[j].ptr[k].id);
 						if(errorCode != WORKER_OK)
 							return errorCode;
 
@@ -498,7 +512,7 @@ int initializeTrie(int distr, worker_map** map_ptr, trieNode* node){
 					}
 
 					else{
-						errorCode = insertTrie(node,token);
+						errorCode = insertTrie(node,token,map_ptr[0][i].dirFiles[j].ptr[k].id);
 						if(errorCode != WORKER_OK)
 							return errorCode;
 					}
@@ -518,5 +532,195 @@ void destroyTrie(trieNode* node){
 
 	destroyTrie(node->next);
 	destroyTrie(node->children);
+	deletePostingsList(node->listPtr);
 	free(node);
+}
+
+
+/*********************/
+/*** POSTINGS LIST ***/ 
+/***   FUNCTIONS   ***/
+/*********************/
+
+int addList(postingsList** ptr, char* id, char* theWord){
+
+	postingsList* parent;
+	postingsListNode* temp;
+	postingsListNode* previous;
+	int value;
+
+	/* A postings list hasn't been created yet */
+	if(*ptr == NULL){
+		*ptr = (postingsList*)malloc(sizeof(postingsList));
+		if(*ptr == NULL)
+			return WORKER_MEM_ERROR;
+		
+		// (*ptr)->dfVector = 1;
+		
+		(*ptr)->word = (char*)malloc(strlen(theWord)+1);
+		if((*ptr)->word == NULL)
+			return WORKER_MEM_ERROR;
+		strcpy((*ptr)->word,theWord);
+		
+		/* Creating the head of the postings list */
+		(*ptr)->headPtr = (postingsListNode*)malloc(sizeof(postingsListNode));
+		if((*ptr)->headPtr == NULL)
+			return WORKER_MEM_ERROR;
+
+		(*ptr)->headPtr->lineID = (char*)malloc((strlen(id)+1)*sizeof(char));
+		if((*ptr)->headPtr->lineID == NULL)
+			return WORKER_MEM_ERROR;
+		strcpy((*ptr)->headPtr->lineID,id);
+		
+		// (*ptr)->headPtr->occurences = 1;
+		
+		(*ptr)->headPtr->next = NULL;
+		
+	}
+	
+	else{
+		parent = *ptr;
+		temp = parent->headPtr;
+
+		while(temp != NULL){
+			value = strcmp(id,temp->lineID);
+
+			if(value == 0)
+				break;
+			if(value > 0){
+				previous = temp;
+				temp = temp->next;
+				continue;
+			}
+		}
+
+		/*if(value == 0)
+			temp->occurences++;
+		else */if(value > 0){
+			temp = (postingsListNode*)malloc(sizeof(postingsListNode));
+			if(temp == NULL)
+				return WORKER_MEM_ERROR;
+			temp->lineID = (char*)malloc((strlen(id)+1)*sizeof(char));
+			if(temp->lineID == NULL)
+				return WORKER_MEM_ERROR;
+			strcpy(temp->lineID,id);
+			// temp->occurences = 1;
+			temp->next = previous->next;
+			previous->next = temp;
+			// parent->dfVector++;
+		}
+	}
+
+	return WORKER_OK;
+}
+
+void deleteList(postingsListNode* ptr){
+	if(ptr == NULL)
+		return;
+	deleteList(ptr->next);
+	free(ptr->lineID);
+	free(ptr);
+}
+
+void deletePostingsList(postingsList* ptr){
+	if(ptr == NULL)
+		return;
+
+	postingsListNode* temp = ptr->headPtr;
+	deleteList(temp);
+	free(ptr->word);
+	free(ptr);
+}
+
+/* Searches for the given word in the Trie */
+postingsList* searchTrie(trieNode* node,char* word){
+	trieNode* temp = node;
+	trieNode* previous = NULL;
+	int value;
+	for(int i = 0; i < strlen(word); i++){
+		
+		temp = temp->children;
+		while(temp != NULL){
+			value = compareKeys(&word[i],&(temp->letter));
+
+			if(value > 0){
+				previous = temp;
+				temp = temp->next;
+				continue;
+			}
+
+			if(value <= 0)
+				break;
+		}
+
+		if(temp == NULL)
+			return NULL;
+		
+		if(value < 0)
+			return NULL;
+		
+		if(i == strlen(word)-1){
+			if(temp->isEndOfWord == True){
+				return temp->listPtr;
+			}
+			else
+				return NULL;
+		}
+
+		previous = NULL;
+		
+	}
+	return NULL;
+}
+
+int getArguments(int fd_read, int fd_write, char** args){
+	
+	char args_length[1024];
+	int argsLength;
+
+	/* Read the length of the arguments */
+	read(fd_read,args_length,1024);
+	args_length[strlen(args_length)] = '\0';
+	argsLength = atoi(args_length);
+
+	/* Inform the parent process that the child
+	   got the length */
+	write(fd_write,"OK",strlen("OK"));
+
+	*args = (char*)malloc((argsLength+1)*sizeof(char));
+	if(*args == NULL)
+		return WORKER_MEM_ERROR;
+
+	/* Read the arguments */
+	read(fd_read,*args,(size_t)argsLength*sizeof(char));
+	args[0][argsLength] = '\0';
+
+	/* Inform the parent process that the operation 
+	   was successful */
+	write(fd_write,"OK",strlen("OK"));
+
+	return WORKER_OK;
+}
+
+int readDirectories(int fd_read, int fd_write, int distr, worker_map** map_ptr){
+	
+	int errorCode;
+	char length[1024];
+	int string_length;
+
+	for(int i = 0; i < distr; i++){
+
+		read(fd_read,length,1024);
+		length[strlen(length)] = '\0';
+		string_length = atoi(length);
+
+		write(fd_write, "OK", strlen("OK"));
+
+		errorCode = initializeWorkerMap(map_ptr,i,fd_read,string_length);
+		if(errorCode != WORKER_OK)
+			return errorCode;
+
+		write(fd_write,"OK",strlen("OK"));
+	}
+	return WORKER_OK;
 }
