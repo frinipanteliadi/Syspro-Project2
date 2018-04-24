@@ -93,6 +93,6 @@ int addList(postingsList**, char*, char*);
 void deleteList(postingsListNode*);
 void deletePostingsList(postingsList*);
 
-int getArguments(int, int, char**);
+int getInput(int, int, char**);
 
 int readDirectories(int, int, int, worker_map**);

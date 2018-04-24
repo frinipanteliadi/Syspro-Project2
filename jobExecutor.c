@@ -214,23 +214,33 @@ int main(int argc, char* argv[]){
 	size_t n = 0;
 	char* input = NULL;
 	while(getline(&input,&n,stdin)!=-1){
-		input = strtok(input,"\n");					
 		
+		char* input_copy;
+		input_copy = (char*)malloc((strlen(input)+1)*sizeof(char));
+		if(input_copy == NULL)
+			return MEM_ERROR;
+		strcpy(input_copy,input);
+
+		input = strtok(input,"\n");					
 		char* operation = strtok(input," \t");		
 		char* arguments = strtok(NULL,"\n");		
 		
-		if(strcmp(operation,"/search") == 0){
+		if(strcmp(operation,"/search") == 0 ||
+			strcmp(operation,"/maxcount") == 0 ||
+			strcmp(operation,"/mincount") == 0 ||
+			strcmp(operation,"/wc") == 0){
+			
 			for(int i = 0; i < numWorkers; i++){
 				char args_length[1024];
 				memset(args_length,'\0',1024);
-				sprintf(args_length,"%ld",strlen(arguments));
+				sprintf(args_length,"%ld",strlen(input_copy));
 				write(pipes_ptr[i].pipe_write_fd,args_length,1024);
 
 				char response[3];
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
 				if(strcmp(response,"OK") == 0)
-					write(pipes_ptr[i].pipe_write_fd,arguments,strlen(arguments));
+					write(pipes_ptr[i].pipe_write_fd,input_copy,strlen(input_copy));
 
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
@@ -238,34 +248,35 @@ int main(int argc, char* argv[]){
 					return EXIT;
 			}
 		}
-		// else if(strcmp(operation,"/maxcount") == 0){
-		// 	errorCode = maxCountOperation();
-		// 	if(errorCode != OK){
-		// 		printErrorMessage(errorCode);
-		// 		break;
-		// 	}
-		// }
-		// else if(strcmp(operation,"/mincount") == 0){
-		// 	errorCode = minCountOperation();
-		// 	if(errorCode != OK){
-		// 		printErrorMessage(errorCode);
-		// 		break;
-		// 	}			
-		// }
-		// else if(strcmp(operation,"/wc") == 0){
-		// 	errorCode = wcOperation();
-		// 	if(errorCode != OK){
-		// 		printErrorMessage(errorCode);
-		// 		break;
-		// 	}
-		// }
 		else if(strcmp(operation,"/exit") == 0){
 			printf("Exiting the application\n");
+
+			for(int i = 0; i < numWorkers; i++){
+				char args_length[1024];
+				memset(args_length,'\0',1024);
+				sprintf(args_length,"%ld",strlen("/exit"));
+				write(pipes_ptr[i].pipe_write_fd,args_length,1024);
+
+				char response[3];
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") == 0)
+					write(pipes_ptr[i].pipe_write_fd,"/exit",strlen("/exit"));
+
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+			}
+			
+			free(input_copy);
 			break;
 		}
 		else
 			printf("Invalid input. Try again\n");
 		printf("\n\n");
+
+		free(input_copy);
 	}
 
 	printf("\n");

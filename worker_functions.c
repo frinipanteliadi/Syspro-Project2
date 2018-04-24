@@ -673,7 +673,7 @@ postingsList* searchTrie(trieNode* node,char* word){
 	return NULL;
 }
 
-int getArguments(int fd_read, int fd_write, char** args){
+int getInput(int fd_read, int fd_write, char** args){
 	
 	char args_length[1024];
 	int argsLength;

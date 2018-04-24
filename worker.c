@@ -86,12 +86,51 @@ int main(int argc, char* argv[]){
 	if(errorCode != WORKER_OK)
 		return -1;
 
-	char* arguments;
-	errorCode = getArguments(fd_read,fd_write,&arguments);
-	// printf("*WORKER: Arguments: %s\n",arguments );
-
-
 	// printWorkerMap(&map_ptr,distr);
+	
+	/****************************/
+	/*** GETTING USER'S INPUT ***/
+	/****************************/
+
+	char* input;
+	errorCode = getInput(fd_read,fd_write,&input);
+	if(errorCode != WORKER_OK)
+		return WORKER_EXIT;
+
+	/* Keep reading until the user asks 
+	   to exit the application */
+	while(strcmp(input,"/exit") != 0){
+
+		char* operation = strtok(input," \t");
+		char* arguments = strtok(NULL,"\n");
+
+		if(strcmp(operation,"/search") == 0){
+			printf("Perfoming a search operation");
+			printf(" with arguments:\n");
+			printf("%s\n",arguments);
+		}
+		else if(strcmp(operation,"/maxcount") == 0){
+			printf("Perfoming a maxcount operation");
+			printf(" with arguments:\n");
+			printf("%s\n",arguments);
+		}
+		else if(strcmp(operation,"/mincount") == 0){
+			printf("Perfoming a mincount operation");
+			printf(" with arguments\n");
+			printf("%s\n",arguments);
+		}
+		else if(strcmp(operation,"/wc") == 0){
+			printf("Perfoming a wc operation");
+			printf(" with arguments\n");
+			printf("%s\n",arguments);
+		}
+		
+		free(input);
+		errorCode = getInput(fd_read,fd_write,&input);
+		if(errorCode != WORKER_OK)
+			return WORKER_EXIT;
+	}
+
 	
 
 	/*******************/
@@ -122,7 +161,7 @@ int main(int argc, char* argv[]){
 
 	close(fd_write);
 	close(fd_read);
-	free(arguments);
+	free(input);
 	free(map_ptr);
 	destroyTrie(root);
 	return WORKER_OK;
