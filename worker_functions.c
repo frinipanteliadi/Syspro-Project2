@@ -151,12 +151,25 @@ int fileInformation(int distr, worker_map** map_ptr){
 		/* Creating the full path of the directory
 		   for scandir() */
 		char* name;
-		name = (char*)malloc((strlen(map_ptr[0][i].dirPath)+1)*sizeof(char));
-		if(name == NULL)
-			return WORKER_MEM_ERROR;
-		strncpy(name,map_ptr[0][i].dirPath,strlen(map_ptr[0][i].dirPath)-1);
-		name[strlen(map_ptr[0][i].dirPath)-1] = '/';
-		name[strlen(map_ptr[0][i].dirPath)] = '\0';
+
+		if(map_ptr[0][i].dirPath[strlen(map_ptr[0][i].dirPath)-1] == '\n'){
+
+			name = (char*)malloc((strlen(map_ptr[0][i].dirPath)+1)*sizeof(char));
+			if(name == NULL)
+				return WORKER_MEM_ERROR;
+			strncpy(name,map_ptr[0][i].dirPath,strlen(map_ptr[0][i].dirPath)-1);
+			name[strlen(map_ptr[0][i].dirPath)-1] = '/';
+			name[strlen(map_ptr[0][i].dirPath)] = '\0';
+		}
+		else{
+			name = (char*)malloc((strlen(map_ptr[0][i].dirPath)+2)*sizeof(char));
+			if(name == NULL)
+				return WORKER_MEM_ERROR;
+
+			strcpy(name,map_ptr[0][i].dirPath);
+			strcat(name,"/");
+			name[strlen(map_ptr[0][i].dirPath)+1] = '\0';
+		}
 
 		/* Scan the directory */
 		struct dirent **entry;
@@ -206,6 +219,10 @@ int fileInformation(int distr, worker_map** map_ptr){
 				return WORKER_MEM_ERROR;
 			strcpy(temp_ptr[j].full_path,name);
 			strcat(temp_ptr[j].full_path,entry[k]->d_name);
+			temp_ptr[j].full_path[strlen(name)+strlen(entry[k]->d_name)] = '\0';
+
+			temp_ptr[j].lines = 0;
+			temp_ptr[j].ptr = NULL;
 		}
 
 		/* Release the memory that scandir() allocated */
@@ -218,6 +235,7 @@ int fileInformation(int distr, worker_map** map_ptr){
 	return WORKER_OK;
 }
 
+/* Find the total number of lines in the file and parse it in the structure */
 int setLines(int distr, worker_map** map_ptr){
 
 	for(int i = 0; i < distr; i++){
@@ -246,6 +264,7 @@ int setLines(int distr, worker_map** map_ptr){
 	return WORKER_OK;
 }
 
+/* Read all of the lines in the file and parse them in the structure */
 int readLines(int distr, worker_map** map_ptr){
 
 	for(int i = 0; i < distr; i++){
@@ -309,10 +328,11 @@ int initializeStructs(int distr, worker_map** map_ptr){
 	if(errorCode != WORKER_OK)
 		return errorCode;
 
+
 	errorCode = setLines(distr,map_ptr);
 	if(errorCode != WORKER_OK)
 		return errorCode;
-
+	
 	errorCode = readLines(distr,map_ptr);
 	if(errorCode != WORKER_OK)
 		return errorCode;
@@ -526,6 +546,7 @@ int initializeTrie(int distr, worker_map** map_ptr, trieNode* node){
 	return WORKER_OK;
 }
 
+/* Deallocates all memory associated with the Trie */
 void destroyTrie(trieNode* node){
 	if(node == NULL)
 		return;
@@ -534,6 +555,68 @@ void destroyTrie(trieNode* node){
 	destroyTrie(node->children);
 	deletePostingsList(node->listPtr);
 	free(node);
+}
+
+/* Prints a node of the Trie structure */
+void printNode(trieNode* node){
+	printf("\n****************************\n");
+	printf("* Letter: %c\n",node->letter);
+	printf("* isEndOfWord: %d\n",node->isEndOfWord);
+	// printf("* Children: %x\n",node->children);
+	// printf("* Next: %x\n",node->next);
+	printf("****************************\n");
+}
+
+/* Prints each node of the Trie from left to right
+   and from down to up */
+void printTrie(trieNode* node){
+	if(node == NULL)
+		return;
+
+	printTrie(node->next);
+	printTrie(node->children);
+	printNode(node);
+}
+
+/* Searches for the given word in the Trie */
+postingsList* searchTrie(trieNode* node,char* word){
+	trieNode* temp = node;
+	trieNode* previous = NULL;
+	int value;
+	for(int i = 0; i < strlen(word); i++){
+		
+		temp = temp->children;
+		while(temp != NULL){
+			value = compareKeys(&word[i],&(temp->letter));
+
+			if(value > 0){
+				previous = temp;
+				temp = temp->next;
+				continue;
+			}
+
+			if(value <= 0)
+				break;
+		}
+
+		if(temp == NULL)
+			return NULL;
+		
+		if(value < 0)
+			return NULL;
+		
+		if(i == strlen(word)-1){
+			if(temp->isEndOfWord == True){
+				return temp->listPtr;
+			}
+			else
+				return NULL;
+		}
+
+		previous = NULL;
+		
+	}
+	return NULL;
 }
 
 
@@ -555,7 +638,7 @@ int addList(postingsList** ptr, char* id, char* theWord){
 		if(*ptr == NULL)
 			return WORKER_MEM_ERROR;
 		
-		// (*ptr)->dfVector = 1;
+		(*ptr)->lfVector = 1;
 		
 		(*ptr)->word = (char*)malloc(strlen(theWord)+1);
 		if((*ptr)->word == NULL)
@@ -607,7 +690,7 @@ int addList(postingsList** ptr, char* id, char* theWord){
 			// temp->occurences = 1;
 			temp->next = previous->next;
 			previous->next = temp;
-			// parent->dfVector++;
+			parent->lfVector++;
 		}
 	}
 
@@ -632,71 +715,59 @@ void deletePostingsList(postingsList* ptr){
 	free(ptr);
 }
 
-/* Searches for the given word in the Trie */
-postingsList* searchTrie(trieNode* node,char* word){
-	trieNode* temp = node;
-	trieNode* previous = NULL;
-	int value;
-	for(int i = 0; i < strlen(word); i++){
-		
-		temp = temp->children;
-		while(temp != NULL){
-			value = compareKeys(&word[i],&(temp->letter));
-
-			if(value > 0){
-				previous = temp;
-				temp = temp->next;
-				continue;
-			}
-
-			if(value <= 0)
-				break;
-		}
-
-		if(temp == NULL)
-			return NULL;
-		
-		if(value < 0)
-			return NULL;
-		
-		if(i == strlen(word)-1){
-			if(temp->isEndOfWord == True){
-				return temp->listPtr;
-			}
-			else
-				return NULL;
-		}
-
-		previous = NULL;
-		
+void printPostingsList(postingsList* ptr, char* word){
+	if(ptr == NULL){
+		printf("The word %s is not in the Trie\n",word);
+		return;
 	}
-	return NULL;
+	postingsListNode* temp = ptr->headPtr;
+
+	printf("\n******************\n");
+	printf("WORD: %s\n",ptr->word);
+	printf("lfVector: %d\n",ptr->lfVector);
+	while(temp != NULL){
+		printf("------------------\n");
+		printf("lineID: %s\n",temp->lineID);
+		// printf("Occurences: %d\n",temp->occurences);
+		// printf("Next: %x\n",temp->next);
+		printf("------------------\n");
+		temp = temp->next;
+	}
+	printf("******************\n\n");
 }
 
-int getInput(int fd_read, int fd_write, char** args){
+void printAllLF(trieNode* node){
+	if(node == NULL)
+		return;
+	printAllLF(node->children);
+	printAllLF(node->next);
+	if(node->isEndOfWord == True)
+		printf("%s %d\n",node->listPtr->word,node->listPtr->lfVector);
+}
+
+/* Responsible for the reading end of the pipe */
+int readPipe(int fd_read, int fd_write, char** args){
 	
-	char args_length[1024];
-	int argsLength;
+	/* Get the size of the incoming data */
+	char length[1024];
+	memset(length,'\0',1024);
+	read(fd_read,length,1024);
+	length[strlen(length)] = '\0';
+	int read_length = atoi(length);
 
-	/* Read the length of the arguments */
-	read(fd_read,args_length,1024);
-	args_length[strlen(args_length)] = '\0';
-	argsLength = atoi(args_length);
-
-	/* Inform the parent process that the child
-	   got the length */
+	/* Respond positively */
 	write(fd_write,"OK",strlen("OK"));
 
-	*args = (char*)malloc((argsLength+1)*sizeof(char));
+	/* Allocate memory for the incoming data */
+	*args = (char*)malloc((read_length+1)*sizeof(char));
 	if(*args == NULL)
 		return WORKER_MEM_ERROR;
 
-	/* Read the arguments */
-	read(fd_read,*args,(size_t)argsLength*sizeof(char));
-	args[0][argsLength] = '\0';
+	/* Get the data */
+	read(fd_read,*args,(size_t)read_length*sizeof(char));
+	args[0][read_length] = '\0';
 
-	/* Inform the parent process that the operation 
-	   was successful */
+	/* Respond positively */
 	write(fd_write,"OK",strlen("OK"));
 
 	return WORKER_OK;
@@ -710,6 +781,7 @@ int readDirectories(int fd_read, int fd_write, int distr, worker_map** map_ptr){
 
 	for(int i = 0; i < distr; i++){
 
+		memset(length,'\0',1024);
 		read(fd_read,length,1024);
 		length[strlen(length)] = '\0';
 		string_length = atoi(length);
@@ -723,4 +795,87 @@ int readDirectories(int fd_read, int fd_write, int distr, worker_map** map_ptr){
 		write(fd_write,"OK",strlen("OK"));
 	}
 	return WORKER_OK;
+}
+
+
+/* Returns the number of words in a list of arguments */
+int getTotalArguments(char* arguments){
+	
+	char* arguments_copy;
+	arguments_copy = (char*)malloc((strlen(arguments)+1)*sizeof(char));
+	if(arguments_copy == NULL)
+		return WORKER_MEM_ERROR;
+	strcpy(arguments_copy,arguments);
+
+	int total_arguments = 0;
+	char* token;
+	token = strtok(arguments_copy," \t");
+	while(token != NULL){
+		total_arguments++;
+		token = strtok(NULL," \t");
+	}
+
+	free(arguments_copy);
+	return total_arguments;
+}
+
+int keepArguments(char** wordKeeping, char* arguments){
+
+	char* arguments_copy = (char*)malloc((strlen(arguments)+1)*sizeof(char));
+	if(arguments_copy == NULL)
+		return WORKER_MEM_ERROR;
+	strcpy(arguments_copy,arguments);
+
+	int i = 0;
+	char* token;
+	token = strtok(arguments_copy," \t");
+	while(token != NULL){
+		wordKeeping[i] = (char*)malloc((strlen(token)+1)*sizeof(char));
+		if(wordKeeping[i] == NULL)
+			return WORKER_MEM_ERROR;
+		strcpy(wordKeeping[i],token);
+		i++;
+		token = strtok(NULL," \t");
+	}
+
+	free(arguments_copy);
+	return WORKER_OK;
+}
+
+void getIDs(int* array, char* id){
+
+	int i = 0;
+	char* token;
+	token = strtok(id,"|");
+	while(token != NULL){
+		array[i] = atoi(token);
+		token = strtok(NULL,"|");
+		i++;
+	}
+}
+
+/* Prints all the infomation associated with the directories 
+   and the files in them */
+void printStructs(int distr, worker_map** map_ptr){
+
+	for(int i = 0; i < distr; i++){
+		printf("\n**************************************\n");
+		printf(" -dirID: %s (%d)\n",map_ptr[0][i].dirID, (int)strlen(map_ptr[0][i].dirID));
+		printf(" -dirPath: %s (%d)",map_ptr[0][i].dirPath,(int)strlen(map_ptr[0][i].dirPath));
+		printf(" -TotalFiles: %d\n",map_ptr[0][i].total_files);
+
+		for(int j = 0; j < map_ptr[0][i].total_files; j++){
+			printf("  -fileID: %s (%d)\n",map_ptr[0][i].dirFiles[j].file_id,(int)strlen(map_ptr[0][i].dirFiles[j].file_id));
+			printf("  -fileName: %s (%d)\n",map_ptr[0][i].dirFiles[j].file_name,(int)strlen(map_ptr[0][i].dirFiles[j].file_name));
+			printf("  -fullPath: %s (%d)\n",map_ptr[0][i].dirFiles[j].full_path,(int)strlen(map_ptr[0][i].dirFiles[j].full_path));
+			printf("  -Lines: %d\n",map_ptr[0][i].dirFiles[j].lines);
+
+			for(int k = 0; k < map_ptr[0][i].dirFiles[j].lines; k++){
+				printf("   -lineID: %s (%d)\n",map_ptr[0][i].dirFiles[j].ptr[k].id,(int)strlen(map_ptr[0][i].dirFiles[j].ptr[k].id));
+				printf("   -lineContent: %s (%d)",map_ptr[0][i].dirFiles[j].ptr[k].line_content,(int)strlen(map_ptr[0][i].dirFiles[j].ptr[k].line_content));
+			}
+		}
+
+		printf("**************************************\n\n");
+	}
 }

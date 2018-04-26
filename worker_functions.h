@@ -17,7 +17,7 @@ typedef struct postingsListNode{
 }postingsListNode;
 
 typedef struct postingsList{
-	// int dfVector;
+	int lfVector;
 	char* word;
 	postingsListNode* headPtr;
 }postingsList;
@@ -87,12 +87,23 @@ int insertTrie(trieNode*, char*, char*);
 int initializeTrie(int, worker_map**, trieNode*);
 
 void destroyTrie(trieNode*);
+void printNode(trieNode*);
+void printTrie(trieNode*);
+postingsList* searchTrie(trieNode*, char*);
 
 int addList(postingsList**, char*, char*);
-
 void deleteList(postingsListNode*);
 void deletePostingsList(postingsList*);
+void printPostingdList(postingsList*, char*);
+void printAllLF(trieNode*);
 
-int getInput(int, int, char**);
+int readPipe(int, int, char**);
 
 int readDirectories(int, int, int, worker_map**);
+
+int getTotalArguments(char*);
+int keepArguments(char**, char*);
+
+void getIDs(int*, char*);
+
+void printStructs(int, worker_map**);

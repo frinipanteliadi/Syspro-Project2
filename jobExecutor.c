@@ -81,6 +81,7 @@ int main(int argc, char* argv[]){
 	/***     DIRECTORIES      ***/
 	/****************************/
 	
+	/* Storing all information on pipes */
 	pipes* pipes_ptr;
 	errorCode = allocatePipeArray(&pipes_ptr,numWorkers);
 	if(errorCode != OK){
@@ -159,7 +160,7 @@ int main(int argc, char* argv[]){
 				return EXIT;
 			}
 
-			errorCode = initializePipeArray(&pipes_ptr,i,
+			errorCode = addToPipeArray(&pipes_ptr,i,
 				pathname_read,pathname_write,fd_read,fd_write);
 			if(errorCode != OK){
 				printErrorMessage(errorCode);
@@ -179,25 +180,11 @@ int main(int argc, char* argv[]){
 
 				strcpy(string,mapPtr[k].dirPath);
 
-
-				char length[1024];											
-				memset(length,'\0',1024);
-				sprintf(length,"%ld",strlen(string));
-				// printf("(Parent) Sending %s\n",length);
-				write(fd_write,length,1024);								// Send the length of the path as a string
-				
-				char response[3];
-				read(fd_read,response,strlen("OK"));
-				response[2] = '\0';
-				// printf("(Parent) %s\n",response);
-				if(strcmp(response,"OK") == 0)
-					write(fd_write,string,strlen(string));
+				errorCode = writingPipes(string,fd_write,fd_read);
+				if(errorCode != OK)
+					return EXIT;
 
 				free(string);
-				read(fd_read,response,strlen("OK"));
-				response[2] = '\0';
-				if(strcmp(response,"OK") != 0)
-					return EXIT;
 			}
 									
 			// close(fd_write);
@@ -208,6 +195,10 @@ int main(int argc, char* argv[]){
 		free(pathname_write);
 	}
 
+	/*********************************/
+	/*** USER REQUESTED OPERATIONS ***/
+	/*********************************/
+
 	welcomeMessage();
 	printf("\n");
 
@@ -215,54 +206,185 @@ int main(int argc, char* argv[]){
 	char* input = NULL;
 	while(getline(&input,&n,stdin)!=-1){
 		
+		/* Remove the newline character from the input */
+		input = strtok(input,"\n");					
+		
+		/* E.g /search quick brown lazy */
 		char* input_copy;
 		input_copy = (char*)malloc((strlen(input)+1)*sizeof(char));
 		if(input_copy == NULL)
 			return MEM_ERROR;
 		strcpy(input_copy,input);
 
-		input = strtok(input,"\n");					
-		char* operation = strtok(input," \t");		
+		char* operation = strtok(input," \t");	
+		/* operation = "/search" & input = "/search" */
+
 		char* arguments = strtok(NULL,"\n");		
-		
+		/* arguments = "quick brown lazy" */
+
 		if(strcmp(operation,"/search") == 0 ||
 			strcmp(operation,"/maxcount") == 0 ||
 			strcmp(operation,"/mincount") == 0 ||
 			strcmp(operation,"/wc") == 0){
-			
-			for(int i = 0; i < numWorkers; i++){
-				char args_length[1024];
-				memset(args_length,'\0',1024);
-				sprintf(args_length,"%ld",strlen(input_copy));
-				write(pipes_ptr[i].pipe_write_fd,args_length,1024);
+			printf("Requested an operation\n");
 
+
+			for(int i = 0; i < numWorkers; i++){
+
+				/* SENDING THE OPERATION */
+				
+				/* Send the size to the other side */
+				char length[1024];
+				memset(length,'\0',1024);
+				sprintf(length,"%ld",strlen(input_copy));
+				write(pipes_ptr[i].pipe_write_fd,length,1024);
+
+				/* Wait for a positive response */
 				char response[3];
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
-				if(strcmp(response,"OK") == 0)
-					write(pipes_ptr[i].pipe_write_fd,input_copy,strlen(input_copy));
 
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+				/* Send the data */
+				write(pipes_ptr[i].pipe_write_fd,input_copy,strlen(input_copy));
+				
+				/* Read the response */
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
 				if(strcmp(response,"OK") != 0)
 					return EXIT;
+
+				/* GETTING THE RESULTS */
+				
+				/* Find out the number of results to expect */
+				int results;
+				read(pipes_ptr[i].pipe_read_fd,&results,sizeof(int));
+
+				/* Respond positively */
+				write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));	
+				
+				printf("The parent will receive %d results from Worker[%d]\n",results,i);
+			
+				for(int j = 0; j < results; j++){
+
+					char length[1024];
+					memset(length,'\0',1024);
+					read(pipes_ptr[i].pipe_read_fd,length,1024);
+					int read_length = atoi(length);
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+					/* Get the word */
+					char* word;
+					word = (char*)malloc((read_length+1)*sizeof(char));
+					if(word == NULL)
+						return MEM_ERROR;
+
+					/* Get the path of the file */
+					read(pipes_ptr[i].pipe_read_fd,word,(size_t)read_length*sizeof(char));
+					word[read_length] = '\0';
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+
+
+
+
+					/* Get the length of the file's path */
+					memset(length,'\0',1024);
+					read(pipes_ptr[i].pipe_read_fd,length,1024);
+					length[strlen(length)] = '\0';
+					read_length = atoi(length);
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+					char* file_path;
+					file_path = (char*)malloc((read_length+1)*sizeof(char));
+					if(file_path == NULL)
+						return MEM_ERROR;
+
+					/* Get the path of the file */
+					read(pipes_ptr[i].pipe_read_fd,file_path,(size_t)read_length*sizeof(char));
+					file_path[read_length] = '\0';
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+
+					/* Get the index of the line */
+					int line_index;
+					read(pipes_ptr[i].pipe_read_fd,&line_index,sizeof(int));
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+
+
+
+					/* Get the content of the line */	
+					memset(length,'\0',1024);
+					read(pipes_ptr[i].pipe_read_fd,length,1024);
+					length[strlen(length)] = '\0';
+					read_length = atoi(length);
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+					char* line_content;
+					line_content = (char*)malloc((read_length+1)*sizeof(char));
+					if(line_content == NULL)
+						return MEM_ERROR;
+
+					/* Get the content of the line */
+					read(pipes_ptr[i].pipe_read_fd,line_content,(size_t)read_length*sizeof(char));
+					line_content[read_length] = '\0';
+
+					/* Respond positively */
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+
+					printf("Result[%d] - %s:\n",j,word);
+					printf(" *FilePath: %s\n",file_path );
+					printf(" *Line(%d): %s\n\n",line_index,line_content);
+					
+					free(word);
+					free(file_path);
+					free(line_content);
+				}
+
 			}
+
+
+			free(input_copy);
 		}
 		else if(strcmp(operation,"/exit") == 0){
 			printf("Exiting the application\n");
 
 			for(int i = 0; i < numWorkers; i++){
-				char args_length[1024];
-				memset(args_length,'\0',1024);
-				sprintf(args_length,"%ld",strlen("/exit"));
-				write(pipes_ptr[i].pipe_write_fd,args_length,1024);
 
+				/* Send the size to the other side */
+				char length[1024];
+				memset(length,'\0',1024);
+				sprintf(length,"%ld",strlen("/exit"));
+				write(pipes_ptr[i].pipe_write_fd,length,1024);
+
+				/* Wait for a positive response */
 				char response[3];
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
-				if(strcmp(response,"OK") == 0)
-					write(pipes_ptr[i].pipe_write_fd,"/exit",strlen("/exit"));
 
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+				/* Send the data */
+				write(pipes_ptr[i].pipe_write_fd,"/exit",strlen("/exit"));
+				
+				/* Read the response */
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
 				response[2] = '\0';
 				if(strcmp(response,"OK") != 0)
@@ -272,11 +394,11 @@ int main(int argc, char* argv[]){
 			free(input_copy);
 			break;
 		}
-		else
+		else{
 			printf("Invalid input. Try again\n");
+			free(input_copy);
+		}
 		printf("\n\n");
-
-		free(input_copy);
 	}
 
 	printf("\n");

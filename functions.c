@@ -219,7 +219,7 @@ int allocatePipeArray(pipes** ptr, int size){
 	return OK;
 }
 
-int initializePipeArray(pipes** ptr,int index, char* read, char* write,
+int addToPipeArray(pipes** ptr,int index, char* read, char* write,
  int read_fd, int write_fd){
 	ptr[0][index].pipe_id = index;
 	
@@ -268,3 +268,56 @@ void closingPipes(pipes** ptr, int size){
 	}
 }
 
+/* Actions for the process which does the writing */
+int writingPipes(char* data, int fd_write, int fd_read){
+	
+	/* Write the size of the data in the pipe */
+	char length[1024];
+	memset(length,'\0',1024);
+	sprintf(length,"%ld",strlen(data));
+	write(fd_write,length,1024);
+
+	/* Check that everything went smoothly */
+	char response[3];
+	read(fd_read,response,strlen("OK"));
+	response[2] = '\0';
+
+	/* Write the data in the pipe */
+	if(strcmp(response,"OK") != 0)
+		return EXIT;
+	else
+		write(fd_write,data,strlen(data));
+
+	read(fd_read,response,strlen("OK"));
+	response[2] = '\0';
+	if(strcmp(response,"OK") != 0)
+		return EXIT;
+
+	return OK;
+}
+
+/* Actions for the process which does the reading */
+int readingPipes(char** data, int fd_read, int fd_write){
+	
+	/* Retrieve the size of the data about to be read */
+	char length_array[1024];
+	int length;
+	read(fd_read,length_array,1024);
+	length_array[strlen(length_array)] = '\0';
+	length = atoi(length_array);
+
+	/* Inform the other side that everything went according to plan */
+	write(fd_write,"OK",strlen("OK"));
+
+	/* Allocate memory for the data which is about to be read */
+	*data = (char*)malloc((length+1)*sizeof(char));
+	if(*data == NULL)
+		return MEM_ERROR;
+
+	/* Read the data from the pipe */
+	read(fd_read,*data,(size_t)length*sizeof(char));
+	data[0][length] = '\0';
+
+	write(fd_write,"OK",strlen("OK"));
+	return OK;
+}
