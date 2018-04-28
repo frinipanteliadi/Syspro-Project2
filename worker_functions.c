@@ -385,6 +385,7 @@ int compareKeys(char* a, char* b){
 
 /* Inserts a new value (word) in the Trie */
 int insertTrie(trieNode* node, char* word, char* id){
+	// printf("Inserting the word %s\n",word);
 	trieNode* temp = node; 
 	trieNode* parent = node;
 	trieNode* previous = NULL;
@@ -640,7 +641,7 @@ int addList(postingsList** ptr, char* id, char* theWord){
 		
 		(*ptr)->lfVector = 1;
 		
-		(*ptr)->word = (char*)malloc(strlen(theWord)+1);
+		(*ptr)->word = (char*)malloc((strlen(theWord)+1)*sizeof(char));
 		if((*ptr)->word == NULL)
 			return WORKER_MEM_ERROR;
 		strcpy((*ptr)->word,theWord);

@@ -14,6 +14,11 @@
 // ./jobExecutor -d docfile -w numWorkers
 // ./jobExecutor -w numWorkers -d docfile
 
+void sig_handler(int signum){
+	if(signum == SIGALRM)
+		printf("The alarm went off\n");
+}
+
 int main(int argc, char* argv[]){
 	
 	/****************************/
@@ -70,6 +75,11 @@ int main(int argc, char* argv[]){
 	fclose(fp);																// Closing the file
 
 	// printMap(mapPtr,total_directories);
+			
+	/***********************/
+	/*** SIGNAL HANDLING ***/
+	/***********************/
+	// signal(SIGALRM,sig_handler);
 	
 
 	/****************************/
@@ -387,6 +397,10 @@ int main(int argc, char* argv[]){
 					resultPtr[i].ptr[j].line_content = NULL;
 				}
 
+
+
+				/*** MUST ADD A TIMER ***/
+				// alarm(deadline);
 				/* Start retieving the results */
 				for(int j = 0; j < results; j++){
 
@@ -462,7 +476,7 @@ int main(int argc, char* argv[]){
 
 			/* Different results arrive in each iteration.
 			   Therefore, we must release all of the memory 
-			   we previously allocated, in order to prepare
+			   that we previously allocated, in order to prepare
 			   for the next results */
 			for(int j = 0; j < numWorkers; j++){
 				for(int k = 0; k < resultPtr[j].total_results; k++){
