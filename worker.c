@@ -101,37 +101,49 @@ int main(int argc, char* argv[]){
 
 	/* Getting the first operation */
 
-	char* input;
-	errorCode = readPipe(fd_read,fd_write,&input);
-	if(errorCode != WORKER_OK)
-		return WORKER_EXIT;
-	printf("\nWorker: %s\n",input);
 	
-	/* Keep answering user requested operations until
-	   the user asks to quit the application */
-	while(strcmp(input,"/exit") != 0){
+	char length[1024];
+	memset(length,'\0',1024);
+	read(fd_read,length,1024);
+	length[strlen(length)] = '\0';
+	int string_length = atoi(length);
 
+	write(fd_write,"OK",strlen("OK"));
+
+	char* input;
+	input = (char*)malloc((string_length+1)*sizeof(char));
+	if(input == NULL)
+		return WORKER_MEM_ERROR;
+
+	read(fd_read,input,(size_t)string_length*sizeof(char));
+	input[string_length] = '\0';
+
+	write(fd_write,"OK",strlen("OK"));
+
+	printf("\nWorker[%d]: %s\n",worker_no,input);
+	
+	while(strcmp(input,"/exit") != 0){
+		
 		char* operation;
 		char* arguments;
 
 		operation = strtok(input," \t");
 		arguments = strtok(NULL,"\n");
 
+		/* The parent requested a search operation */
 		if(strcmp(operation,"/search") == 0){
-			printf("\nThe worker will perform a %s operation\n",operation);
-			printf("The arguments are: %s\n",arguments);
-				
-			int total = getTotalArguments(arguments);
 
-			/* Store each one of the words in the list of arguments */
+			/* Find the number of words which we'll have to search */
+			int total_args = getTotalArguments(arguments);
+
+			/* Store the words we will be searching for */
 			char** wordKeeping;
-			wordKeeping = (char**)malloc(total*sizeof(char*));
+			wordKeeping = (char**)malloc(total_args*sizeof(char*));
 			if(wordKeeping == NULL)
 				return WORKER_MEM_ERROR;
-			
+
 			if(keepArguments(wordKeeping,arguments) < 0)
 				return WORKER_EXIT;
-
 
 			/* Finding the total number of results we will be sending */
 			int results = 0;
@@ -156,31 +168,35 @@ int main(int argc, char* argv[]){
 				}
 				word = strtok(NULL," \t");
 			}
-			printf("\nThe worker will return %d results\n",results);
 			
-			/* Inform the parent about the number of results it will receive */
+			printf("\nThe worker will return %d results\n",results);
+
+			/* Inform the parent about the number of results */
 			write(fd_write,&results,sizeof(int));
 
-			/* Find out parent's response */
 			char response[3];
 			read(fd_read,response,strlen("OK"));
 			response[2] = '\0';
 			if(strcmp(response,"OK") != 0)
 				return WORKER_EXIT;
 
+
 			/* Start sending the results */
-			for(int i = 0; i < total; i++){
-				// printf("Word: %s\n",wordKeeping[i]);
+			for(int i = 0; i < total_args; i++){
 
 				postingsList* ptr;
 				ptr = searchTrie(root,wordKeeping[i]);
-				if(ptr == NULL)
+				if(ptr == NULL){
+					printf("The word '%s' is not in any of the",wordKeeping[i]);
+					printf(" files that were provided\n");
 					continue;
+				}
 
 				postingsListNode* temp;
 				temp = ptr->headPtr;
 				while(temp != NULL){
-
+					
+					/* Get the ID of the line */
 					char* line_id;
 					line_id = (char*)malloc((strlen(temp->lineID)+1)*sizeof(char));
 					if(line_id == NULL)
@@ -200,114 +216,123 @@ int main(int argc, char* argv[]){
 							lineID = atoi(token);
 							break;
 						}
+
 						token = strtok(NULL,"|");
 						turn++;
 					}
 
 					free(line_id);
-
+					
+					// printf("\n* '%s'\n",wordKeeping[i]);
 					// printf("MapID: %d\n",mapID);
 					// printf("FileID: %d\n",fileID);
-					// printf("LineID: %d\n", lineID);
-					printf("\n");
+					// printf("LineID: %d\n",lineID);
 
-					/* Sending the word we're working on */
+					/* Send the results for the current word */
+					
+					/* 1) Send the word we're currently working on */
 					char length[1024];
 					memset(length,'\0',1024);
 					sprintf(length,"%ld",strlen(wordKeeping[i]));
 					write(fd_write,length,1024);
 
-					char parent_response[3];
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					char response[3];
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 					write(fd_write,wordKeeping[i],strlen(wordKeeping[i]));
 
-					memset(parent_response,'\0',3);
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 
 
 
-					/* Sending the file's path */
+
+
+					/* 2) Send the path of the file */
 					memset(length,'\0',1024);
 					sprintf(length,"%ld",strlen(map_ptr[mapID].dirFiles[fileID].full_path));
 					write(fd_write,length,1024);
 
-					memset(parent_response,'\0',3);
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 					// printf("Sending: %s\n",map_ptr[mapID].dirFiles[fileID].full_path);
 					write(fd_write,map_ptr[mapID].dirFiles[fileID].full_path,strlen(map_ptr[mapID].dirFiles[fileID].full_path));
 
-					memset(parent_response,'\0',3);
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 
 
+					/* 3) Send the index of the line */
 
-					/* Sending the index of the line */
 					write(fd_write,&lineID,sizeof(int));
 
-					memset(parent_response,'\0',3);
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 
 
-					/* Sending the length of the line */
+					/* 4) Send the line */
 					memset(length,'\0',1024);
 					sprintf(length,"%ld",strlen(map_ptr[mapID].dirFiles[fileID].ptr[lineID].line_content));
 					write(fd_write,length,1024);
 
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
 
 					// printf("Sending: %s\n",map_ptr[mapID].dirFiles[fileID].full_path);
 					write(fd_write,map_ptr[mapID].dirFiles[fileID].ptr[lineID].line_content,strlen(map_ptr[mapID].dirFiles[fileID].ptr[lineID].line_content));
 
-					memset(parent_response,'\0',3);
-					read(fd_read,parent_response,strlen("OK"));
-					parent_response[2] = '\0';
-					if(strcmp(parent_response,"OK") != 0)
+					memset(response,'\0',3);
+					read(fd_read,response,strlen("OK"));
+					response[2] = '\0';
+					if(strcmp(response,"OK") != 0)
 						return WORKER_EXIT;
-
 
 					temp = temp->next;
 				}
+
 			}
 
-			for(int i = 0; i < total; i++)
+			/* Freeing memory */
+			for(int i = 0; i < total_args; i++)
 				free(wordKeeping[i]);
 			free(wordKeeping);
 		}
 		
+		/* Keep answering user requested operations until
+		   the user asks to quit the application */
 		free(input);
 		errorCode = readPipe(fd_read,fd_write,&input);
 		if(errorCode != WORKER_OK)
 			return WORKER_EXIT;
-		printf("Worker: %s\n",input);
+		printf("Worker[%d]: %s\n",worker_no,input);
 	}
 
+
 	
-
-
-
 
 
 	/*******************/

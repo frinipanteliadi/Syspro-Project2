@@ -748,28 +748,30 @@ void printAllLF(trieNode* node){
 /* Responsible for the reading end of the pipe */
 int readPipe(int fd_read, int fd_write, char** args){
 	
-	/* Get the size of the incoming data */
+	/* Fetch the size of the incoming data */	
 	char length[1024];
 	memset(length,'\0',1024);
 	read(fd_read,length,1024);
 	length[strlen(length)] = '\0';
-	int read_length = atoi(length);
+	int string_length = atoi(length);
 
 	/* Respond positively */
 	write(fd_write,"OK",strlen("OK"));
 
 	/* Allocate memory for the incoming data */
-	*args = (char*)malloc((read_length+1)*sizeof(char));
+	*args = (char*)malloc((string_length+1)*sizeof(char));
 	if(*args == NULL)
 		return WORKER_MEM_ERROR;
 
+	memset(*args,'\0',string_length+1);
+
 	/* Get the data */
-	read(fd_read,*args,(size_t)read_length*sizeof(char));
-	args[0][read_length] = '\0';
+	read(fd_read,*args,(size_t)string_length*sizeof(char));
+	args[0][string_length] = '\0';
 
 	/* Respond positively */
 	write(fd_write,"OK",strlen("OK"));
-
+	
 	return WORKER_OK;
 }
 

@@ -301,6 +301,7 @@ int readingPipes(char** data, int fd_read, int fd_write){
 	
 	/* Retrieve the size of the data about to be read */
 	char length_array[1024];
+	memset(length_array,'\0',1024);
 	int length;
 	read(fd_read,length_array,1024);
 	length_array[strlen(length_array)] = '\0';
@@ -321,3 +322,47 @@ int readingPipes(char** data, int fd_read, int fd_write){
 	write(fd_write,"OK",strlen("OK"));
 	return OK;
 }
+
+int getNumberOfArgs(char* input){
+	char* copy;
+	copy = (char*)malloc((strlen(input)+1)*sizeof(char));
+	if(copy == NULL)
+		return MEM_ERROR;
+	strcpy(copy,input);
+
+	int total = 0;
+	char* token = strtok(copy, " \t");
+	while(token != NULL){
+		total++;
+		token = strtok(NULL," \t");
+	}
+
+	free(copy);
+	return total;
+}
+
+int storingWords(char** wordKeeping, char* input, int* array){
+
+	char* copy;
+	copy = (char*)malloc((strlen(input)+1)*sizeof(char));
+	if(copy == NULL)
+		return MEM_ERROR;
+	strcpy(copy,input);
+
+	int j = 0;
+	char* token;
+	token = strtok(copy," \t");
+	while(token != NULL){
+		wordKeeping[j] = (char*)malloc((strlen(token)+1)*sizeof(char));
+		if(wordKeeping[j] == NULL)
+			return MEM_ERROR;
+		strcpy(wordKeeping[j],token);
+		array[j] = (int)strlen(wordKeeping[j]);
+		token = strtok(NULL, " \t");
+		j++;
+	}
+
+	free(copy);
+	return OK;
+}
+

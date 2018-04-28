@@ -24,6 +24,19 @@ typedef struct pipes{
 	char* pipename_write;
 }pipes;
 
+typedef struct result_info{
+	char* word;
+	char* file_path;
+	int line_number;
+	char* line_content;
+}result_info;
+
+typedef struct result_map{
+	result_info* ptr;
+	int total_results;
+}result_map;
+
+
 void printErrorMessage(int);
 int CommandLineArg(int);
 int getNumberOfLines(FILE*);
@@ -46,3 +59,5 @@ void deletePipeArray(pipes**, int);
 void closingPipes(pipes**, int);
 int writingPipes(char*, int, int);
 int readingPipes(char**, int, int);
+int getNumberOfArgs(char*);
+int storingWords(char**, char*, int*);
