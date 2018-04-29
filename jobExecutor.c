@@ -261,8 +261,8 @@ int main(int argc, char* argv[]){
 
 				if(strcmp(response,"OK") != 0)
 					return EXIT;
-				else
-					write(pipes_ptr[i].pipe_write_fd,"/exit",strlen("/exit"));
+				
+				write(pipes_ptr[i].pipe_write_fd,"/exit",strlen("/exit"));
 
 				memset(response,'\0',3);
 				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
@@ -270,9 +270,94 @@ int main(int argc, char* argv[]){
 				if(strcmp(response,"OK") != 0)
 					return EXIT;
 
+
+				/* Getting the number of files the worker has */
+
+			}
+			break;
+		}
+
+		else if(strcmp(input,"/wc") == 0){
+
+			// int total_bytes = 0;
+			int total_words = 0;
+			int total_lines = 0;
+
+			for(int i = 0; i < numWorkers; i++){
+
+				/* Send the operation to the children */
+				char length[1024];
+				memset(length,'\0',1024);
+				sprintf(length,"%ld",strlen("/wc"));
+				write(pipes_ptr[i].pipe_write_fd,length,1024);
+
+				char response[3];
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+				write(pipes_ptr[i].pipe_write_fd,"/wc",strlen("/wc"));
+
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+
+				/* Retreive the statistics from the worker */
+				
+				/****************************************/
+				/* 1) Getting the total number of lines */
+				/****************************************/
+				memset(length,'\0',1024);
+				read(pipes_ptr[i].pipe_read_fd,length,1024);
+				int read_length = atoi(length);
+
+				write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+				char* lines_no;
+				lines_no = (char*)malloc((read_length+1)*sizeof(char));
+				if(lines_no == NULL)
+					return MEM_ERROR;
+				memset(lines_no,'\0',read_length+1);		
+
+				read(pipes_ptr[i].pipe_read_fd,lines_no,(size_t)read_length*sizeof(char));
+
+				write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+				total_lines += atoi(lines_no);
+
+				free(lines_no);
+
+				/****************************************/
+				/* 2) Getting the total number of words */
+				/****************************************/
+				memset(length,'\0',1024);
+				read(pipes_ptr[i].pipe_read_fd,length,1024);
+				read_length = atoi(length);
+
+				write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+
+				char* words_no;
+				words_no = (char*)malloc((read_length+1)*sizeof(char));
+				if(words_no == NULL)
+					return MEM_ERROR;
+				memset(words_no,'\0',read_length+1);
+
+				read(pipes_ptr[i].pipe_read_fd,words_no,(size_t)read_length*sizeof(char));
+
+				write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
+				total_words += atoi(words_no);
+
+				free(words_no);
 			}
 
-			break;
+			printf("* Total Words: %d\n",total_words);
+			printf("* Total Lines: %d\n",total_lines);
+			continue;
 		}
 
 		char* input_copy;
@@ -287,8 +372,8 @@ int main(int argc, char* argv[]){
 		operation = strtok(input_copy," \t");
 		arguments = strtok(NULL, "\n");
 
-		printf("Operation: %s\n",operation);
-		printf("Arguments: %s\n",arguments);
+		// printf("Operation: %s\n",operation);
+		// printf("Arguments: %s\n",arguments);
 
 		if(strcmp("/search",operation) == 0){
 
@@ -573,7 +658,7 @@ int main(int argc, char* argv[]){
 						return MEM_ERROR;
 					memset(filePaths[j],'\0',read_length+1);
 
-					read(pipes_ptr[j].pipe_read_fd,filePaths[j]/*file_full_path*/,(size_t)read_length*sizeof(char));
+					read(pipes_ptr[j].pipe_read_fd,filePaths[j],(size_t)read_length*sizeof(char));
 
 					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
 
@@ -586,7 +671,7 @@ int main(int argc, char* argv[]){
 					else if(occurences[max] < occurences[j])
 						max = j;
 					else if(occurences[max] == occurences[j])
-						if(strcmp(filePaths[max],filePaths[j]) < 0)
+						if(strcmp(filePaths[max],filePaths[j]) > 0)
 							max = j;
 
 			}
@@ -625,6 +710,69 @@ int main(int argc, char* argv[]){
 				if(strcmp(response,"OK") != 0)
 					return EXIT;
 			}
+
+			char* filePaths[numWorkers];
+			int occurences[numWorkers];
+			int min;
+			for(int j = 0; j < numWorkers; j++){
+
+					/* 1) Get the max number of occurences */
+					char length[1024];
+					memset(length,'\0',1024);
+					read(pipes_ptr[j].pipe_read_fd,length,1024);
+					int read_length = atoi(length);
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					// printf("Read Length: %d\n",read_length);
+
+					char* no;
+					no = (char*)malloc((read_length+1)*sizeof(char));
+					if(no == NULL)
+						return MEM_ERROR;
+					memset(no,'\0',read_length+1);
+
+					read(pipes_ptr[j].pipe_read_fd,no,(size_t)read_length*sizeof(char));
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+					occurences[j] = atoi(no);
+					// printf("Occurences No: %d\n",occurences[j]);
+
+					/* 2) Get the full path of the file */
+					memset(length,'\0',1024);
+					read(pipes_ptr[j].pipe_read_fd,length,1024);
+					read_length = atoi(length);
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					filePaths[j] = (char*)malloc((read_length+1)*sizeof(char));
+					if(filePaths[j] == NULL)
+						return MEM_ERROR;
+					memset(filePaths[j],'\0',read_length+1);
+
+					read(pipes_ptr[j].pipe_read_fd,filePaths[j],(size_t)read_length*sizeof(char));
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					// printf("Full Path: %s\n",filePaths[j]);
+
+					free(no);
+
+					if(j == 0)
+						min = j;
+					else if(occurences[min] > occurences[j])
+						min = j;
+					else if(occurences[min] == occurences[j])
+						if(strcmp(filePaths[min],filePaths[j]) > 0)
+							min = j;
+
+			}
+
+			printf("\n* File: %s\n",filePaths[min]);
+			printf("* Occurences: %d\n",occurences[min]);
+
+			for(int j = 0; j < numWorkers; j++)
+				free(filePaths[j]);
 		}
 		else
 			printf("Invalid input. Try again\n");

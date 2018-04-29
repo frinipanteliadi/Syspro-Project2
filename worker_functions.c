@@ -882,3 +882,31 @@ void printStructs(int distr, worker_map** map_ptr){
 		printf("**************************************\n\n");
 	}
 }
+
+/* Source: https://www.geeksforgeeks.org/count-words-in-a-given-string/ */
+int countWords(char *str){
+    int state = 0;
+    unsigned wc = 0;  // word count
+ 
+    // Scan all characters one by one
+    while (*str)
+    {
+        // If next character is a separator, set the 
+        // state as 0
+        if (*str == ' ' || *str == '\n' || *str == '\t')
+            state = 0;
+ 
+        // If next character is not a word separator and 
+        // state is OUT, then set the state as IN and 
+        // increment word count
+        else if (state == 0)
+        {
+            state = 1;
+            ++wc;
+        }
+ 
+        // Move to next character
+        ++str;
+    }
+    return wc;
+}

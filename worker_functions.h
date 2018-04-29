@@ -107,3 +107,4 @@ int keepArguments(char**, char*);
 void getIDs(int*, char*);
 
 void printStructs(int, worker_map**);
+int countWords(char*);

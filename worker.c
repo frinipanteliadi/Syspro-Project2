@@ -120,9 +120,98 @@ int main(int argc, char* argv[]){
 
 	write(fd_write,"OK",strlen("OK"));
 
-	printf("\nWorker[%d]: %s\n",worker_no,input);
-
+	// printf("\nWorker[%d]: %s\n",worker_no,input);
+	
 	while(strcmp(input,"/exit") != 0){
+
+		if(strcmp(input,"/wc") == 0){
+			
+			int total_lines = 0;
+			int total_words = 0;
+			for(int i = 0; i < distr; i++){
+				for(int j = 0; j < map_ptr[i].total_files; j++){
+					
+					total_lines += map_ptr[i].dirFiles[j].lines;
+					
+					for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++)
+						total_words += countWords(map_ptr[i].dirFiles[j].ptr[k].line_content);
+				}
+			}
+
+			// printf("Total lines: %d\n",total_lines);
+			// printf("Total words: %d\n",total_words);
+
+			/* Send the total number of lines and words */ 
+
+			/*************************************/
+			/* 1) Send the total number of lines */
+			/*************************************/
+
+			/* Parse the total number of lines as a string */
+			char num[1024];
+			memset(num,'\0',1024);
+			sprintf(num,"%d",total_lines);
+
+			/* Parse the length of the string */
+			char len[1024];
+			memset(len,'\0',1024);
+			sprintf(len,"%ld",strlen(num));
+
+			/* Send the length */
+			write(fd_write,len,1024);
+
+			/* Read the response */
+			char resp[3];
+			memset(resp,'\0',3);
+			read(fd_read,resp,strlen("OK"));
+
+			if(strcmp(resp,"OK") != 0)
+				return WORKER_EXIT;
+
+			/* Send the total number of lines */
+			write(fd_write,num,strlen(num));
+
+			memset(resp,'\0',3);
+			read(fd_read,resp,strlen("OK"));
+
+			if(strcmp(resp,"OK") != 0)
+				return WORKER_EXIT;
+
+			/*************************************/
+			/* 2) Send the total number of words */
+			/*************************************/
+
+			memset(num,'\0',1024);
+			sprintf(num,"%d",total_words);
+
+			memset(len,'\0',1024);
+			sprintf(len,"%ld",strlen(num));
+
+			write(fd_write,len,1024);
+
+			memset(resp,'\0',3);
+			read(fd_read,resp,strlen("OK"));
+
+			if(strcmp(resp,"OK") != 0)
+				return WORKER_EXIT;
+
+			write(fd_write,num,strlen(num));
+
+			memset(resp,'\0',1024);
+			read(fd_read,resp,strlen("OK"));
+
+			if(strcmp(resp,"OK") != 0)
+				return WORKER_EXIT;
+
+			
+			
+			free(input);
+			errorCode = readPipe(fd_read,fd_write,&input);
+			if(errorCode != WORKER_OK)
+				return WORKER_EXIT;
+			// printf("Worker[%d]: %s\n",worker_no,input);
+			continue;
+		}
 
 		char* operation;
 		char* arguments;
@@ -321,6 +410,7 @@ int main(int argc, char* argv[]){
 				free(wordKeeping[i]);
 			free(wordKeeping);
 		}
+		
 		else if(strcmp(operation,"/maxcount") == 0){
 			int * occurences[distr];
 			for(int i = 0 ; i < distr; i++) {
@@ -427,9 +517,8 @@ int main(int argc, char* argv[]){
 
 			if(strcmp(response,"OK") != 0)
 				return WORKER_EXIT;
-
-
 		}
+
 		else if(strcmp(operation,"/mincount") == 0){
 			int * occurences[distr];
 			for(int i = 0 ; i < distr; i++) {
@@ -490,16 +579,61 @@ int main(int argc, char* argv[]){
 				free(occurences[i]);
 			}
 
-			printf("DirId: %d FileId: %d Occurences: %d\n", topdirId, topfileId, min);
+			// printf("DirId: %d FileId: %d Occurences: %d\n", topdirId, topfileId, min);
 
+			/* 1) Sending the max number of occurences */
+			char number[1024];
+			memset(number,'\0',1024);
+			sprintf(number,"%d",min);
+
+			char length[1024];
+			memset(length,'\0',1024);
+			sprintf(length,"%ld",strlen(number));
+
+			write(fd_write,length,1024);
+
+			char response[3];
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			write(fd_write,number,strlen(number));
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			/* 2) Sending the full path of the file */
+			memset(length,'\0',1024);
+			sprintf(length,"%ld",strlen(map_ptr[topdirId].dirFiles[topfileId].full_path));
+			write(fd_write,length,1024);
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			write(fd_write,map_ptr[topdirId].dirFiles[topfileId].full_path,strlen(map_ptr[topdirId].dirFiles[topfileId].full_path));
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
 		}
+		
 		/* Keep answering user requested operations until
 		   the user asks to quit the application */
 		free(input);
 		errorCode = readPipe(fd_read,fd_write,&input);
 		if(errorCode != WORKER_OK)
 			return WORKER_EXIT;
-		printf("Worker[%d]: %s\n",worker_no,input);
+		// printf("Worker[%d]: %s\n",worker_no,input);
 	}
 
 
