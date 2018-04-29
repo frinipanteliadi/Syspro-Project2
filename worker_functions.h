@@ -12,7 +12,7 @@ typedef enum bool {False, True} bool;
 
 typedef struct postingsListNode{
 	char* lineID;
-	// int occurences;
+	int occurences;
 	struct postingsListNode *next;
 }postingsListNode;
 
@@ -27,7 +27,7 @@ typedef struct trieNode{
 	char letter;															/*Letter stored inside the node*/
 	bool isEndOfWord;														/*Flag which indicated whether a word ends in the current node*/
 	struct trieNode* children;												/*Points at a child node*/
-	struct trieNode* next;	
+	struct trieNode* next;
 	postingsList* listPtr;												/*Points at the next sibling node*/
 }trieNode;
 

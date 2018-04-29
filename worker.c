@@ -19,16 +19,16 @@ int main(int argc, char* argv[]){
 	}
 
 	/****************************/
-	/*** GETTING THE NAMES OF ***/ 
+	/*** GETTING THE NAMES OF ***/
 	/***      THE PIPES       ***/
 	/****************************/
 
-	char* pathname_read = argv[2];		
+	char* pathname_read = argv[2];
 	int fd_read;
-	
-	char* pathname_write = argv[1];	
+
+	char* pathname_write = argv[1];
 	int fd_write;
-	
+
 	errorCode = openingPipes(pathname_read, pathname_write,
 		&fd_read,&fd_write);
 	if(errorCode != WORKER_OK){
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]){
 
 	/*printf("(Child)Reads from: %s\n",argv[2]);
 	printf("(Child)Writes to: %s\n",argv[1]);*/
-	
+
 	int worker_no = atoi(argv[3]);											// Worker's number
 	int distr = atoi(argv[4]);												// Number of paths for the worker
 
@@ -49,11 +49,11 @@ int main(int argc, char* argv[]){
 		return WORKER_EXIT;
 	}
 
-	// printf("** WORKER(%d) **\n",worker_no);							
-	
+	// printf("** WORKER(%d) **\n",worker_no);
+
 	/********************************/
 	/*** FETCHING THE DIRECTORIES ***/
-	/***       VIA PIPES          ***/ 
+	/***       VIA PIPES          ***/
 	/********************************/
 
 	errorCode = readDirectories(fd_read, fd_write, distr, &map_ptr);
@@ -61,7 +61,7 @@ int main(int argc, char* argv[]){
 		printWorkerError(errorCode);
 		return WORKER_EXIT;
 	}
-	
+
 	// printWorkerMap(&map_ptr,distr);
 
 	/****************************/
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]){
 	/***        FROM          ***/
 	/***   THE DIRECTORIES    ***/
 	/****************************/
-	
+
 	errorCode = initializeStructs(distr,&map_ptr);
 	if(errorCode != WORKER_OK){
 		printf("ERROR!\n");
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]){
 	/* Creating the root of the Trie */
 	trieNode* root;
 	errorCode = createRoot(&root);
-	
+
 	errorCode = initializeTrie(distr,&map_ptr,root);
 	if(errorCode != WORKER_OK)
 		return -1;
@@ -89,8 +89,8 @@ int main(int argc, char* argv[]){
 	// printTrie(root);
 
 	// printWorkerMap(&map_ptr,distr);
-	
-	// printAllLF(root);	
+
+	// printAllLF(root);
 
 	// printStructs(distr,&map_ptr);
 
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]){
 
 	/* Getting the first operation */
 
-	
+
 	char length[1024];
 	memset(length,'\0',1024);
 	read(fd_read,length,1024);
@@ -121,9 +121,9 @@ int main(int argc, char* argv[]){
 	write(fd_write,"OK",strlen("OK"));
 
 	printf("\nWorker[%d]: %s\n",worker_no,input);
-	
+
 	while(strcmp(input,"/exit") != 0){
-		
+
 		char* operation;
 		char* arguments;
 
@@ -150,7 +150,7 @@ int main(int argc, char* argv[]){
 			char* word;
 			word = strtok(arguments," \t");
 			while(word != NULL){
-				
+
 				postingsList* ptr;
 				ptr = searchTrie(root,word);
 				if(ptr == NULL){
@@ -168,7 +168,7 @@ int main(int argc, char* argv[]){
 				}
 				word = strtok(NULL," \t");
 			}
-			
+
 			printf("\nThe worker will return %d results\n",results);
 
 			/* Inform the parent about the number of results */
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]){
 				postingsListNode* temp;
 				temp = ptr->headPtr;
 				while(temp != NULL){
-					
+
 					/* Get the ID of the line */
 					char* line_id;
 					line_id = (char*)malloc((strlen(temp->lineID)+1)*sizeof(char));
@@ -222,14 +222,14 @@ int main(int argc, char* argv[]){
 					}
 
 					free(line_id);
-					
+
 					// printf("\n* '%s'\n",wordKeeping[i]);
 					// printf("MapID: %d\n",mapID);
 					// printf("FileID: %d\n",fileID);
 					// printf("LineID: %d\n",lineID);
 
 					/* Send the results for the current word */
-					
+
 					/* 1) Send the word we're currently working on */
 					char length[1024];
 					memset(length,'\0',1024);
@@ -321,7 +321,178 @@ int main(int argc, char* argv[]){
 				free(wordKeeping[i]);
 			free(wordKeeping);
 		}
-		
+		else if(strcmp(operation,"/maxcount") == 0){
+			int * occurences[distr];
+			for(int i = 0 ; i < distr; i++) {
+				occurences[i] = malloc(map_ptr[i].total_files*sizeof(int));
+				for (int j = 0; j < map_ptr[i].total_files; j++) {
+					occurences[i][j] = 0;
+				}
+			}
+			postingsList * list = searchTrie(root, arguments);
+			if(list != NULL) {
+				postingsListNode* temp;
+				temp = list->headPtr;
+				while(temp != NULL){
+
+					/* Get the ID of the line */
+					char* line_id;
+					line_id = (char*)malloc((strlen(temp->lineID)+1)*sizeof(char));
+					if(line_id == NULL)
+						return WORKER_MEM_ERROR;
+					strcpy(line_id,temp->lineID);
+
+					int turn = 0;
+					int mapID, fileID, lineID;
+					char* token;
+					token = strtok(line_id,"|");
+					while(token != NULL){
+						if(turn == 0)
+							mapID = atoi(token);
+						else if(turn == 1)
+							fileID = atoi(token);
+						else if(turn == 2){
+							lineID = atoi(token);
+							break;
+						}
+
+						token = strtok(NULL,"|");
+						turn++;
+					}
+					// printf("MapID %d TotalFiles %d\n", fileID, map_ptr[mapID].total_files );
+					occurences[mapID][fileID]+= temp->occurences;
+					free(line_id);
+					temp = temp->next;
+				}
+			}
+
+			int max = occurences[0][0];
+			int topfileId = 0;
+			int topdirId = 0;
+			for(int i = 0; i < distr; i++) {
+				for (int j = 0; j < map_ptr[i].total_files; j++) {
+					/* code */
+					if(max < occurences[i][j]) {
+						max = occurences[i][j];
+						topfileId = j;
+						topdirId = i;
+					}
+				}
+				free(occurences[i]);
+			}
+
+			// printf("DirId: %d FileId: %d Occurences: %d\n", topdirId, topfileId, max);
+
+			/* 1) Sending the max number of occurences */
+			char number[1024];
+			memset(number,'\0',1024);
+			sprintf(number,"%d",max);
+
+			char length[1024];
+			memset(length,'\0',1024);
+			sprintf(length,"%ld",strlen(number));
+
+			write(fd_write,length,1024);
+
+			char response[3];
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			write(fd_write,number,strlen(number));
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			/* 2) Sending the full path of the file */
+			memset(length,'\0',1024);
+			sprintf(length,"%ld",strlen(map_ptr[topdirId].dirFiles[topfileId].full_path));
+			write(fd_write,length,1024);
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+			write(fd_write,map_ptr[topdirId].dirFiles[topfileId].full_path,strlen(map_ptr[topdirId].dirFiles[topfileId].full_path));
+
+			memset(response,'\0',3);
+			read(fd_read,response,strlen("OK"));
+
+			if(strcmp(response,"OK") != 0)
+				return WORKER_EXIT;
+
+
+		}
+		else if(strcmp(operation,"/mincount") == 0){
+			int * occurences[distr];
+			for(int i = 0 ; i < distr; i++) {
+				occurences[i] = malloc(map_ptr[i].total_files*sizeof(int));
+				for (int j = 0; j < map_ptr[i].total_files; j++) {
+					occurences[i][j] = 0;
+				}
+			}
+			postingsList * list = searchTrie(root, arguments);
+			if(list != NULL) {
+				postingsListNode* temp;
+				temp = list->headPtr;
+				while(temp != NULL){
+
+					/* Get the ID of the line */
+					char* line_id;
+					line_id = (char*)malloc((strlen(temp->lineID)+1)*sizeof(char));
+					if(line_id == NULL)
+						return WORKER_MEM_ERROR;
+					strcpy(line_id,temp->lineID);
+
+					int turn = 0;
+					int mapID, fileID, lineID;
+					char* token;
+					token = strtok(line_id,"|");
+					while(token != NULL){
+						if(turn == 0)
+							mapID = atoi(token);
+						else if(turn == 1)
+							fileID = atoi(token);
+						else if(turn == 2){
+							lineID = atoi(token);
+							break;
+						}
+
+						token = strtok(NULL,"|");
+						turn++;
+					}
+					// printf("MapID %d TotalFiles %d\n", fileID, map_ptr[mapID].total_files );
+					occurences[mapID][fileID]+= temp->occurences;
+					free(line_id);
+					temp = temp->next;
+				}
+			}
+
+			int min = occurences[0][0];
+			int topfileId = 0;
+			int topdirId = 0;
+			for(int i = 0; i < distr; i++) {
+				for (int j = 0; j < map_ptr[i].total_files; j++) {
+					/* code */
+					if(min > occurences[i][j]) {
+						min = occurences[i][j];
+						topfileId = j;
+						topdirId = i;
+					}
+				}
+				free(occurences[i]);
+			}
+
+			printf("DirId: %d FileId: %d Occurences: %d\n", topdirId, topfileId, min);
+
+		}
 		/* Keep answering user requested operations until
 		   the user asks to quit the application */
 		free(input);
@@ -332,7 +503,7 @@ int main(int argc, char* argv[]){
 	}
 
 
-	
+
 
 
 	/*******************/
@@ -348,7 +519,7 @@ int main(int argc, char* argv[]){
 			free(map_ptr[i].dirFiles[j].file_id);
 			free(map_ptr[i].dirFiles[j].file_name);
 			free(map_ptr[i].dirFiles[j].full_path);
-			
+
 			for(int k = 0; k < map_ptr[i].dirFiles[j].lines; k++){
 				free(map_ptr[i].dirFiles[j].ptr[k].line_content);
 				free(map_ptr[i].dirFiles[j].ptr[k].id);
@@ -359,7 +530,7 @@ int main(int argc, char* argv[]){
 
 		free(map_ptr[i].dirFiles);
 	}
-	
+
 	free(input);
 	close(fd_write);
 	close(fd_read);

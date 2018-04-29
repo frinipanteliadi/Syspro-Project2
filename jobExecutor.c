@@ -20,9 +20,9 @@ void sig_handler(int signum){
 }
 
 int main(int argc, char* argv[]){
-	
+
 	/****************************/
-	/*** HANDLING THE COMMAND ***/ 
+	/*** HANDLING THE COMMAND ***/
 	/***   LINE ARGUMENTS     ***/
 	/****************************/
 	int errorCode = CommandLineArg(argc);									// Checking the number of arguments that were provided
@@ -32,11 +32,11 @@ int main(int argc, char* argv[]){
 	}
 
 	int numWorkers = 10;													// Default value for the number of Worker processes
-	FILE* fp;					
+	FILE* fp;
 
 	for(int i = 1; i < argc; i+=2){											// The arguments can be provided in different ways
 		if(strcmp(argv[i],"-d") == 0){
-			fp = fopen(argv[i+1],"r");		
+			fp = fopen(argv[i+1],"r");
 			if(fp == NULL){
 				printErrorMessage(FILE_NOT_OPEN);
 				return EXIT;
@@ -50,7 +50,7 @@ int main(int argc, char* argv[]){
 
 	int total_directories = getNumberOfLines(fp);							// Total number of paths kept in the file
 	rewind(fp);																// Return to the beggining of the file
-	
+
 	/*********************************/
 	/*** CREATING AND INITIALIZING ***/
 	/***         THE MAP           ***/
@@ -75,12 +75,12 @@ int main(int argc, char* argv[]){
 	fclose(fp);																// Closing the file
 
 	// printMap(mapPtr,total_directories);
-			
+
 	/***********************/
 	/*** SIGNAL HANDLING ***/
 	/***********************/
 	// signal(SIGALRM,sig_handler);
-	
+
 
 	/****************************/
 	/*** CREATING THE WORKERS ***/
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]){
 	/***   DISTRIBUTING THE   ***/
 	/***     DIRECTORIES      ***/
 	/****************************/
-	
+
 	/* Storing all information on pipes */
 	pipes* pipes_ptr;
 	errorCode = allocatePipeArray(&pipes_ptr,numWorkers);
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]){
 	resultPtr = (result_map*)malloc(numWorkers*sizeof(result_map));
 	if(resultPtr == NULL)
 		return MEM_ERROR;
-	
+
 	/* Initializing the result_map structure with NULL and zero values */
 	for(int i = 0; i < numWorkers; i++){
 		resultPtr[i].ptr = NULL;
@@ -147,11 +147,11 @@ int main(int argc, char* argv[]){
 			return EXIT;
 		}
 
-		createPathname(&pathname_read,buffer,&pathname_write);				
-		
+		createPathname(&pathname_read,buffer,&pathname_write);
+
 		/*printf("(Parent)Reads from: %s\n",pathname_read);
 		printf("(Parent)Writes to: %s\n",pathname_write);*/
-		
+
 		if(mkfifo(pathname_read,0666) < 0){									// Creating a named-pipe where the jobExecutor reads from it
 			printErrorMessage(PIPE_ERROR);
 			return EXIT;
@@ -171,15 +171,15 @@ int main(int argc, char* argv[]){
 			if(execlp("./worker","./worker",pathname_read,
 				pathname_write,buffer,
 				worker_distr,(char*)NULL) == -1){
-				
+
 				printErrorMessage(EXEC_ERROR);
 				return EXIT;
 			}
 		}
 		else{																// Commands for the parent process
-			
+
 			int j, fd_write, fd_read;
-				
+
 			fd_write = open(pathname_write, O_WRONLY);
 			if(fd_write < 0){
 				printErrorMessage(OPEN_ERROR);
@@ -200,9 +200,9 @@ int main(int argc, char* argv[]){
 			}
 
 			for(j = 0; j < distr[i]; j++, current_map_position++){
-				
+
 				int k = current_map_position;
-				
+
 				char* string;
 				string = (char*)malloc((int)strlen(mapPtr[k].dirPath)+1);
 				if(string == NULL){
@@ -218,7 +218,7 @@ int main(int argc, char* argv[]){
 
 				free(string);
 			}
-									
+
 			// close(fd_write);
 			// close(fd_read);
 		}
@@ -237,17 +237,17 @@ int main(int argc, char* argv[]){
 	size_t n = 0;
 	char* input = NULL;
 	while(getline(&input,&n,stdin)!=-1){
-		
+
 		/* Remove the newline character from the input */
-		input = strtok(input,"\n");	
-			
+		input = strtok(input,"\n");
+
 		/* The user requested to exit the app */
 		if(strcmp(input,"/exit") == 0){
 			printf("Exiting the application\n");
 
 			/* Inform each one of the children */
 			for(int i = 0; i < numWorkers; i++){
-				
+
 				/* Send the length of the /exit string */
 				char length[1024];
 				memset(length,'\0',1024);
@@ -323,7 +323,7 @@ int main(int argc, char* argv[]){
 			}
 
 			// printf("The deadline is :%d\n",deadline);
-			
+
 			/* The total length of the combined arguments */
 			int total_length = 0;
 			for(int i = 0; i < total_args-2; i++)
@@ -374,7 +374,7 @@ int main(int argc, char* argv[]){
 				response[2] = '\0';
 				if(strcmp(response,"OK") != 0)
 					return EXIT;
-				
+
 				/* Find out the total number of incoming results */
 				int results;
 				read(pipes_ptr[i].pipe_read_fd,&results,sizeof(int));
@@ -387,7 +387,7 @@ int main(int argc, char* argv[]){
 				resultPtr[i].ptr = (result_info*)malloc(results*sizeof(result_info));
 				if(resultPtr[i].ptr == NULL)
 					return MEM_ERROR;
-					
+
 				/* Initializing the result_info structure with NULL and zero values */
 				for(int j = 0; j < results; j++){
 					resultPtr[i].total_results = results;
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]){
 					resultPtr[i].ptr[j].word[read_length] = '\0';
 
 					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
-					
+
 
 					/* 2) Get the file of the path */
 
@@ -449,7 +449,7 @@ int main(int argc, char* argv[]){
 					/* 3) Get the index of the line */
 
 					read(pipes_ptr[i].pipe_read_fd,&resultPtr[i].ptr[j].line_number,sizeof(int));
-					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));	
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
 
 
 					/* 4) Get the line */
@@ -470,12 +470,12 @@ int main(int argc, char* argv[]){
 					resultPtr[i].ptr[j].line_content[read_length] = '\0';
 
 					/* Respond positively */
-					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));			
+					write(pipes_ptr[i].pipe_write_fd,"OK",strlen("OK"));
 				}
 			}
 
 			/* Different results arrive in each iteration.
-			   Therefore, we must release all of the memory 
+			   Therefore, we must release all of the memory
 			   that we previously allocated, in order to prepare
 			   for the next results */
 			for(int j = 0; j < numWorkers; j++){
@@ -505,6 +505,127 @@ int main(int argc, char* argv[]){
 			free(wordKeeping);
 			free(message);
 		}
+		else if(strcmp("/maxcount", operation) == 0){
+			for(int i = 0; i < numWorkers; i++){
+
+				/* Sending the length of the message */
+				char length[1024];
+				memset(length,'\0',1024);
+				sprintf(length,"%ld",strlen(input));
+				write(pipes_ptr[i].pipe_write_fd,length,1024);
+
+				/* Get the child's response */
+				char response[3];
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+				/* Send the input */
+				write(pipes_ptr[i].pipe_write_fd,input,strlen(input));
+
+				/* Get the child's response */
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+			}
+
+			char* filePaths[numWorkers];
+			int occurences[numWorkers];
+			int max;
+			for(int j = 0; j < numWorkers; j++){
+
+					/* 1) Get the max number of occurences */
+					char length[1024];
+					memset(length,'\0',1024);
+					read(pipes_ptr[j].pipe_read_fd,length,1024);
+					int read_length = atoi(length);
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					// printf("Read Length: %d\n",read_length);
+
+					char* no;
+					no = (char*)malloc((read_length+1)*sizeof(char));
+					if(no == NULL)
+						return MEM_ERROR;
+					memset(no,'\0',read_length+1);
+
+					read(pipes_ptr[j].pipe_read_fd,no,(size_t)read_length*sizeof(char));
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+					occurences[j] = atoi(no);
+					// printf("Occurences No: %d\n",occurences[j]);
+
+					/* 2) Get the full path of the file */
+					memset(length,'\0',1024);
+					read(pipes_ptr[j].pipe_read_fd,length,1024);
+					read_length = atoi(length);
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					filePaths[j] = (char*)malloc((read_length+1)*sizeof(char));
+					if(filePaths[j] == NULL)
+						return MEM_ERROR;
+					memset(filePaths[j],'\0',read_length+1);
+
+					read(pipes_ptr[j].pipe_read_fd,filePaths[j]/*file_full_path*/,(size_t)read_length*sizeof(char));
+
+					write(pipes_ptr[j].pipe_write_fd,"OK",strlen("OK"));
+
+					// printf("Full Path: %s\n",filePaths[j]);
+
+					free(no);
+
+					if(j == 0)
+						max = j;
+					else if(occurences[max] < occurences[j])
+						max = j;
+					else if(occurences[max] == occurences[j])
+						if(strcmp(filePaths[max],filePaths[j]) < 0)
+							max = j;
+
+			}
+
+			printf("\n* File: %s\n",filePaths[max]);
+			printf("* Occurences: %d\n",occurences[max]);
+
+			for(int j = 0; j < numWorkers; j++)
+				free(filePaths[j]);
+		}
+		else if(strcmp("/mincount", operation) == 0){
+			for(int i = 0; i < numWorkers; i++){
+
+				/* Sending the length of the message */
+				char length[1024];
+				memset(length,'\0',1024);
+				sprintf(length,"%ld",strlen(input));
+				write(pipes_ptr[i].pipe_write_fd,length,1024);
+
+				/* Get the child's response */
+				char response[3];
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+
+				/* Send the input */
+				write(pipes_ptr[i].pipe_write_fd,input,strlen(input));
+
+				/* Get the child's response */
+				memset(response,'\0',3);
+				read(pipes_ptr[i].pipe_read_fd,response,strlen("OK"));
+				response[2] = '\0';
+				if(strcmp(response,"OK") != 0)
+					return EXIT;
+			}
+		}
 		else
 			printf("Invalid input. Try again\n");
 
@@ -521,17 +642,18 @@ int main(int argc, char* argv[]){
 	/***        AND          ***/
 	/***  CLOSING THE PIPES  ***/
 	/***************************/
-	// for(int i = 0; i < numWorkers; i++){
-	// 	for(int j = 0; j < resultPtr[i].total_results; j++){
-	// 		printf("\nresultPtr[%d].ptr[%d].word: %s\n",i,j,resultPtr[i].ptr[j].word);
-	// 		printf("resultPtr[%d].ptr[%d].file_path: %s\n",i,j,resultPtr[i].ptr[j].file_path);
-	// 		printf("resultPtr[%d].ptr[%d].line_content: %s\n\n",i,j,resultPtr[i].ptr[j].line_content);
-	// 		free(resultPtr[i].ptr[j].word);
-	// 		free(resultPtr[i].ptr[j].file_path);
-	// 		free(resultPtr[i].ptr[j].line_content);
-	// 	}
-	// 	free(resultPtr[i].ptr);
-	// }
+
+	for(int i = 0; i < numWorkers; i++){
+		for(int j = 0; j < resultPtr[i].total_results; j++){
+			printf("\nresultPtr[%d].ptr[%d].word: %s\n",i,j,resultPtr[i].ptr[j].word);
+			printf("resultPtr[%d].ptr[%d].file_path: %s\n",i,j,resultPtr[i].ptr[j].file_path);
+			printf("resultPtr[%d].ptr[%d].line_content: %s\n\n",i,j,resultPtr[i].ptr[j].line_content);
+			free(resultPtr[i].ptr[j].word);
+			free(resultPtr[i].ptr[j].file_path);
+			free(resultPtr[i].ptr[j].line_content);
+		}
+		free(resultPtr[i].ptr);
+	}
 	free(resultPtr);
 	closingPipes(&pipes_ptr,numWorkers);
 	deletePipeArray(&pipes_ptr,numWorkers);

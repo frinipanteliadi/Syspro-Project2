@@ -26,3 +26,7 @@ clean:
 	rm -rf worker
 	rm -rf info
 	find .  -maxdepth 1 -type p -delete
+
+pipes:
+	find .  -maxdepth 1 -type p -delete
+
