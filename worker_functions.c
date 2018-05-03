@@ -676,6 +676,8 @@ int addList(postingsList** ptr, char* id, char* theWord){
 				temp = temp->next;
 				continue;
 			}
+
+			temp = temp->next;
 		}
 
 		if(value == 0)
